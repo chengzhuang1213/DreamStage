@@ -5,6 +5,7 @@ import {
   NODE_LABELS,
   REWARD_GOLD,
   RARITY_LABELS,
+  SECONDARY_BONDS,
   applyPostNodePassives,
   type BattleState,
   type BattleType,
@@ -113,6 +114,10 @@ function getInitial(name: string) {
 
 function draftImageSrc(template: CharacterTemplate) {
   return DRAFT_IMAGE_BY_ID[template.id] ?? template.avatar;
+}
+
+function getSecondaryBondNames(templateId: string) {
+  return SECONDARY_BONDS.filter((bond) => bond.memberIds.includes(templateId)).map((bond) => bond.name);
 }
 
 function getTemplateById(id: string) {
@@ -737,7 +742,6 @@ function DraftScreen({ candidates, selectedIds, onToggle, onReroll, onConfirm }:
           </button>
         </div>
       </div>
-      <DraftBondPreview selectedCharacters={selectedCandidates} />
       <div className="draft-grid">
         {visibleCandidates.map((candidate) => (
           <DraftCandidateCard
@@ -748,6 +752,7 @@ function DraftScreen({ candidates, selectedIds, onToggle, onReroll, onConfirm }:
           />
         ))}
       </div>
+      <DraftBondPreview selectedCharacters={selectedCandidates} />
     </main>
   );
 }
@@ -760,8 +765,8 @@ function DraftBondPreview({ selectedCharacters }: { selectedCharacters: Characte
   return (
     <section className="draft-bonds">
       <div className="draft-bonds-heading">
-        <p className="eyebrow">羁绊预览</p>
-        <h3>当前选择可触发的羁绊</h3>
+        <p className="eyebrow">羁绊说明</p>
+        <h3>主羁绊与次羁绊</h3>
       </div>
       <div className="draft-bond-grid">
         {bonds.map((bond) => (
@@ -806,6 +811,8 @@ interface DraftCandidateCardProps {
 }
 
 function DraftCandidateCard({ template, selected, onClick }: DraftCandidateCardProps) {
+  const secondaryBondNames = getSecondaryBondNames(template.id);
+
   return (
     <button
       className={`draft-card rarity-${template.rarity} ${selected ? 'selected' : ''}`}
@@ -824,6 +831,11 @@ function DraftCandidateCard({ template, selected, onClick }: DraftCandidateCardP
       <div className="draft-card-body">
         <div className="card-tags">
           <span className="group-tag">{GROUP_LABELS[template.group]}</span>
+          {secondaryBondNames.map((bondName) => (
+            <span className="group-tag secondary-bond-tag" key={bondName}>
+              {bondName}
+            </span>
+          ))}
           <span className={`rarity-tag rarity-${template.rarity}`}>{RARITY_LABELS[template.rarity]}</span>
         </div>
         <h3>{template.name}</h3>

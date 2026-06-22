@@ -466,6 +466,12 @@ button {
   font-weight: 800;
 }
 
+.secondary-bond-tag {
+  background: #f1e8ff;
+  color: #6335a0;
+  box-shadow: inset 0 0 0 1px rgba(142, 90, 215, 0.24);
+}
+
 .card-copy em {
   display: inline-block;
   margin-top: 10px;
@@ -638,6 +644,7 @@ button {
 .draft-bonds {
   display: grid;
   gap: 12px;
+  margin-top: 8px;
 }
 
 .draft-bonds-heading h3 {
