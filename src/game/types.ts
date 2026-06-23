@@ -179,6 +179,7 @@ export interface CharacterBattleStats {
   name: string;
   damageDealt: number;
   damageTaken: number;
+  shieldBlocked: number;
   criticalHits: number;
 }
 

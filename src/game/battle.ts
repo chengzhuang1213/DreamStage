@@ -54,6 +54,7 @@ function getBattleStat(stats: BattleStats, character: Character): CharacterBattl
     name: character.name,
     damageDealt: 0,
     damageTaken: 0,
+    shieldBlocked: 0,
     criticalHits: 0,
   };
 
@@ -506,25 +507,34 @@ function resolveAttack(
     }
   }
 
+  const defenderShieldBefore = defender.shield;
   const defenderDurabilityBefore = defender.hp + defender.shield;
   applyDamageToShieldAndHp(defender, damage);
   const actualDamage = Math.min(damage, defenderDurabilityBefore);
-  if (actualDamage > 0 && isAllyAttacker) {
+  log.push(`${attacker.name}攻击${defender.name}，造成${damage}伤害，${defender.name}剩余${defender.hp}HP。`);
+
+  const kotoriTrueDamage =
+    actualDamage > 0 && attacker.skill.id === 'kotori_crit' && upgradeLevel(attacker) >= 3 && defender.hp > 0
+      ? Math.min(10, defender.hp)
+      : 0;
+  if (kotoriTrueDamage > 0) {
+    defender.hp = Math.max(0, defender.hp - kotoriTrueDamage);
+    log.push(`${attacker.name}触发Lv3强化，技能伤害结算后额外造成${kotoriTrueDamage}点真实伤害，${defender.name}剩余${defender.hp}HP。`);
+    tryBossEncore(defender, runtime, log);
+  }
+  const totalActualDamage = actualDamage + kotoriTrueDamage;
+  const shieldBlocked = Math.min(defenderShieldBefore, actualDamage);
+  if (totalActualDamage > 0 && isAllyAttacker) {
     const attackerStats = getBattleStat(stats, attacker);
-    attackerStats.damageDealt += actualDamage;
+    attackerStats.damageDealt += totalActualDamage;
     if (critical) {
       attackerStats.criticalHits += 1;
     }
   }
-  if (actualDamage > 0 && isAllyDefender) {
-    getBattleStat(stats, defender).damageTaken += actualDamage;
-  }
-  log.push(`${attacker.name}攻击${defender.name}，造成${damage}伤害，${defender.name}剩余${defender.hp}HP。`);
-
-  if (actualDamage > 0 && attacker.skill.id === 'kotori_crit' && upgradeLevel(attacker) >= 3 && defender.hp > 0) {
-    defender.hp = Math.max(0, defender.hp - 10);
-    log.push(`${attacker.name}触发Lv3强化，额外造成10点真实伤害，${defender.name}剩余${defender.hp}HP。`);
-    tryBossEncore(defender, runtime, log);
+  if (totalActualDamage > 0 && isAllyDefender) {
+    const defenderStats = getBattleStat(stats, defender);
+    defenderStats.damageTaken += actualDamage - shieldBlocked + kotoriTrueDamage;
+    defenderStats.shieldBlocked += shieldBlocked;
   }
 
   if (actualDamage > 0 && attacker.skill.id === 'yoshiko_poison' && defender.hp > 0) {
@@ -828,6 +838,7 @@ function runGroupBattle(
 
   while (allies.some((ally) => ally.hp > 0) && enemy.hp > 0 && rounds < 80) {
     rounds += 1;
+    log.push(`第${rounds}回合。`);
     const turnOrder = [
       ...allies
         .filter((ally) => ally.hp > 0)
