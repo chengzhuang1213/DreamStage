@@ -1090,6 +1090,99 @@
   .hud-wide-button {
     width: 100%;
   }
+
+  .map-detail-modal {
+    width: min(100%, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    padding: 14px;
+    overflow-x: hidden;
+  }
+
+  .map-detail-modal .modal-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .map-detail-modal .modal-heading h2 {
+    font-size: 1.55rem;
+    line-height: 1.08;
+  }
+
+  .map-detail-modal .ghost-button {
+    min-height: 42px;
+    padding: 8px 12px;
+  }
+
+  .map-detail-content,
+  .map-detail-list {
+    gap: 10px;
+  }
+
+  .map-detail-row,
+  .map-detail-row.bond-row {
+    grid-template-columns: 56px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .map-detail-row > .avatar {
+    grid-row: 1 / span 2;
+    width: 52px;
+    height: 52px;
+  }
+
+  .map-detail-row .bond-dot {
+    width: 52px;
+    height: 42px;
+  }
+
+  .map-detail-row .bond-dot img {
+    width: 52px;
+    height: 42px;
+    object-fit: contain;
+  }
+
+  .map-detail-row strong {
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  .map-detail-row span,
+  .map-detail-row small,
+  .map-empty-copy {
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .map-character-bonds,
+  .map-bond-members {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .map-bond-logo-chip {
+    width: 42px;
+    height: 42px;
+  }
+
+  .map-bond-logo-chip img {
+    width: 34px;
+    height: 34px;
+  }
+
+  .map-bond-member {
+    width: 54px;
+  }
+
+  .map-bond-member .avatar {
+    width: 40px;
+    height: 40px;
+  }
 }
 .map-hud-shell .map-back-button,
 .map-hud-shell .resource-pill.heart {

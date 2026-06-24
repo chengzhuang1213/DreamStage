@@ -414,6 +414,7 @@
   .draft-detail-modal {
     width: min(100%, 420px);
     max-height: calc(100vh - 24px);
+    overflow-x: hidden;
     padding: 14px;
   }
 
@@ -427,6 +428,23 @@
   .draft-detail-heading h2 {
     margin: 0 0 8px;
     font-size: 1.42rem;
+  }
+
+  .draft-detail-modal .card-tags {
+    min-width: 0;
+  }
+
+  .draft-detail-modal .card-tag-row {
+    align-items: flex-start;
+    min-height: 0;
+  }
+
+  .draft-detail-modal .group-tag,
+  .draft-detail-modal .rarity-tag {
+    max-width: 100%;
+    line-height: 1.22;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .draft-detail-portrait {
@@ -445,7 +463,14 @@
   }
 
   .draft-detail-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     margin: 12px 0;
+  }
+
+  .draft-detail-modal .bond-tag .bond-member-popover,
+  .draft-detail-modal .info-pill::after {
+    display: none !important;
   }
 
   .draft-detail-modal .draft-ability {
@@ -489,5 +514,14 @@
 
   .draft-card-body {
     padding: 7px;
+  }
+
+  .draft-detail-heading {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .draft-detail-portrait {
+    height: 122px;
   }
 }

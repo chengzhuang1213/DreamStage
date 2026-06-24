@@ -1673,3 +1673,39 @@
   background: #111111;
   color: #ffffff;
 }
+
+@media (max-width: 820px) {
+  .draft-bonds {
+    gap: 10px;
+    padding-bottom: 72px;
+  }
+
+  .draft-bond-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .draft-bond-grid .bond-item {
+    grid-template-rows: auto auto;
+    height: auto;
+    min-height: 0;
+    padding: 10px;
+  }
+
+  .draft-bond-grid .bond-item-details {
+    overflow: visible;
+  }
+
+  .draft-bond-grid .bond-item small {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: initial;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .draft-bond-grid .bond-member-popover {
+    display: none !important;
+  }
+}
