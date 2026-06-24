@@ -1344,6 +1344,7 @@
   }
 
   .battle-skill-callout {
+    bottom: var(--callout-bottom, 160px);
     max-width: min(174px, 64vw);
     padding: 6px 9px;
     border-radius: 12px 12px 12px 5px;
