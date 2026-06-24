@@ -91,6 +91,53 @@ function emitLogEvent(emit: BattleEventEmitter | undefined, kind: BattleEventKin
   emitBattleEvent(emit, { kind, text });
 }
 
+const BOSS_BATTLE_LINES: Record<string, Partial<Record<'start' | 'win' | 'lose', string>>> = {
+  boss_honoka: {
+    start: '大家，一起全力上吧！',
+    win: '赢啦！继续向梦想前进！',
+    lose: '嘿嘿……下次一定会赢回来！',
+  },
+  boss_chika: {
+    start: '奇迹，可不会自己出现哦！',
+    win: '看来，这次幸运站在我这边呢！',
+    lose: '原来……今天的奇迹属于你。',
+  },
+  boss_dia: {
+    start: '请让我看看，你是否有站在这里的资格。',
+    win: '还需要继续努力，不可懈怠。',
+    lose: '看来……是我判断失误了。',
+  },
+  boss_kasumi: {
+    start: '准备好被霞霞子迷住了吗？',
+    win: '哼哼，霞霞子果然最可爱！',
+    lose: '欸——怎么会这样啦！',
+  },
+  boss_chisato: {
+    start: '跟不上节奏的话，可是会被甩开的。',
+    win: '看来，你还得再练练呢。',
+    lose: '看来……这次是你更快一步。',
+  },
+  boss_maki: {
+    start: '别让我失望，认真一点吧。',
+    win: '这种程度，可赢不了我。',
+    lose: '可恶....我才不服气呢。',
+  },
+};
+
+function emitBossLine(emit: BattleEventEmitter | undefined, boss: Character, timing: 'start' | 'win' | 'lose') {
+  const line = BOSS_BATTLE_LINES[boss.templateId]?.[timing];
+  if (!line) {
+    return;
+  }
+
+  emitBattleEvent(emit, {
+    kind: 'major',
+    text: `${boss.name}「${line}」`,
+    actorId: boss.id,
+    actorName: boss.name,
+  });
+}
+
 function upgradeLevel(character: Character): UpgradeLevel {
   return character.upgradeLevel ?? 1;
 }
@@ -191,6 +238,7 @@ function prepareCombatant(
   team: Character[],
   runtime: RuntimeState,
   log: string[],
+  emit?: BattleEventEmitter,
 ) {
   const flags = getFlags(runtime, actor.id);
   if (flags.prepared) {
@@ -203,6 +251,15 @@ function prepareCombatant(
   actor.vulnerable = Math.max(0, actor.vulnerable);
   actor.battleAttackBonus = 0;
   actor.battleSpeedBonus = 0;
+
+  if (!isAlly && actor.passive && (actor.rarity === 'elite' || actor.enemyTier === 'strong')) {
+    emitBattleEvent(emit, {
+      kind: 'start',
+      text: `${actor.name}的「${actor.passive.name}」准备生效。`,
+      actorId: actor.id,
+      actorName: actor.name,
+    });
+  }
 
   if (actor.passive?.id === 'enemy_hanayo_start_hp') {
     actor.maxHp += 5;
@@ -352,19 +409,25 @@ function getDamageReduction(defender: Character, isAllyTarget: boolean, team: Ch
   return reduction;
 }
 
-function applyRoleDamageMultiplier(damage: number, defender: Character, isAllyDefender: boolean, log: string[]): number {
+function applyRoleDamageMultiplier(
+  damage: number,
+  defender: Character,
+  isAllyDefender: boolean,
+): { damage: number; logText?: string } {
   if (!isAllyDefender || !defender.role) {
-    return damage;
+    return { damage };
   }
 
   const multiplier = ROLE_DAMAGE_MULTIPLIERS[defender.role];
   if (multiplier === 1) {
-    return damage;
+    return { damage };
   }
 
   const adjustedDamage = Math.max(1, Math.round(damage * multiplier));
-  log.push(`${defender.name}作为${ROLE_LABELS[defender.role]}，承受伤害${Math.round(multiplier * 100)}%，本次伤害调整为${adjustedDamage}。`);
-  return adjustedDamage;
+  return {
+    damage: adjustedDamage,
+    logText: `${defender.name}作为${ROLE_LABELS[defender.role]}，承受伤害${Math.round(multiplier * 100)}%，本次伤害调整为${adjustedDamage}。`,
+  };
 }
 
 function applyDamageToShieldAndHp(defender: Character, damage: number) {
@@ -424,8 +487,13 @@ function calculateDamage(
   team: Character[],
   runtime: RuntimeState,
   log: string[],
-): { damage: number; critical: boolean } {
+): { damage: number; critical: boolean; roleAdjustmentText?: string; calloutTexts: string[] } {
   const flags = getFlags(runtime, attacker.id);
+  const calloutTexts: string[] = [];
+  const pushCallout = (text: string) => {
+    log.push(text);
+    calloutTexts.push(text);
+  };
   let damage = effectiveAttack(attacker);
   let criticalChance = 0;
   const kotoriCritSkillActive = attacker.skill.id === 'kotori_crit';
@@ -441,7 +509,7 @@ function calculateDamage(
     const multiplier = 1.5;
     damage *= multiplier;
     criticalChance = 1;
-    log.push(`${attacker.name}发动《${attacker.skill.name}》，拥有护盾时必定暴击，造成1.5倍伤害。`);
+    pushCallout(`${attacker.name}发动《${attacker.skill.name}》，拥有护盾时必定暴击，造成1.5倍伤害。`);
     if (upgradeLevel(attacker) >= 5 && spirit >= 4) {
       const teammateAttackSum = team
         .filter((member) => member.id !== attacker.id && !member.injured && member.hp > 0)
@@ -485,7 +553,7 @@ function calculateDamage(
 
   if (bossPowerSkillActive) {
     damage *= 1.5;
-    log.push(`${attacker.name}发动「${attacker.skill.name}」，本次攻击造成1.5倍伤害。`);
+    pushCallout(`${attacker.name}发动「${attacker.skill.name}」，本次攻击造成1.5倍伤害。`);
   }
 
 
@@ -493,7 +561,7 @@ function calculateDamage(
     flags.kekeCharged = false;
     flags.kekeChargeCooldown = 1;
     damage *= 2;
-    log.push(`${attacker.name}消耗《${attacker.skill.name}》，本次攻击造成2倍伤害。`);
+    pushCallout(`${attacker.name}消耗《可可重击》，本次攻击造成2倍伤害。`);
   }
 
   if (attacker.skill.id === 'keke_charge' && flags.transformed && upgradeLevel(attacker) >= 2) {
@@ -503,29 +571,30 @@ function calculateDamage(
         ? (Math.random() < 0.1 ? 4 : 2.5)
         : (Math.random() < 0.1 ? 3 : 1.75);
     damage *= multiplier;
-    log.push(`${attacker.name}发动《可可重击》，本次攻击造成${multiplier}倍伤害。`);
+    pushCallout(`${attacker.name}发动《可可重击》，本次攻击造成${multiplier}倍伤害。`);
   }
 
   if (flags.nextAttackMultiplier) {
     const multiplier = flags.nextAttackMultiplier;
     flags.nextAttackMultiplier = undefined;
     damage *= multiplier;
-    log.push(`${attacker.name}发动《${attacker.skill.name}》，本次攻击造成${multiplier}倍伤害。`);
+    pushCallout(`${attacker.name}发动《${attacker.skill.name}》，本次攻击造成${multiplier}倍伤害。`);
   }
 
   if (kotoriCritSkillActive) {
     criticalChance += upgradeLevel(attacker) >= 2 ? 0.5 : 0.3;
+    pushCallout(`${attacker.name}发动《${attacker.skill.name}》，本次攻击更容易暴击。`);
   }
 
   if (kasumiSkillActive) {
     damage *= 1.5;
-    log.push(`${attacker.name}发动《${attacker.skill.name}》，本次攻击伤害+50%。`);
+    pushCallout(`${attacker.name}发动《${attacker.skill.name}》，本次攻击伤害+50%。`);
   }
 
   if (flags.forceCritical) {
     criticalChance = 1;
     flags.forceCritical = false;
-    log.push(`${attacker.name}发动「${attacker.passive?.name ?? '必定暴击'}」，本次攻击必定暴击。`);
+    pushCallout(`${attacker.name}发动「${attacker.passive?.name ?? '必定暴击'}」，本次攻击必定暴击。`);
   }
 
   if (isAllyAttacker && hasBond(team, 'cute', 3)) {
@@ -594,9 +663,9 @@ function calculateDamage(
     log.push(`${attacker.name}利用梦境侵蚀，本次伤害提高${Math.round(dreamBonus * 100)}%。`);
   }
 
-  damage = applyRoleDamageMultiplier(damage, defender, isAllyDefender, log);
+  const roleDamage = applyRoleDamageMultiplier(damage, defender, isAllyDefender);
 
-  return { damage: Math.max(1, Math.round(damage)), critical };
+  return { damage: Math.max(1, Math.round(roleDamage.damage)), critical, roleAdjustmentText: roleDamage.logText, calloutTexts };
 }
 
 function resolveAttack(
@@ -621,7 +690,7 @@ function resolveAttack(
     }
   }
 
-  let { damage, critical } = calculateDamage(
+  let { damage, critical, roleAdjustmentText, calloutTexts } = calculateDamage(
     attacker,
     defender,
     isAllyAttacker,
@@ -630,12 +699,31 @@ function resolveAttack(
     runtime,
     log,
   );
+  calloutTexts.forEach((text) => {
+    emitBattleEvent(emit, {
+      kind: 'major',
+      text,
+      actorId: attacker.id,
+      targetId: defender.id,
+      actorName: attacker.name,
+      targetName: defender.name,
+    });
+  });
 
   const defenderFlags = getFlags(runtime, defender.id);
   if (defender.passive?.id === 'elite_riko_inspiration' && (defenderFlags.damageNegatedCount ?? 0) < 2) {
     defenderFlags.damageNegatedCount = (defenderFlags.damageNegatedCount ?? 0) + 1;
     damage = 0;
-    log.push(`${defender.name}发动「${defender.passive.name}」，受到的第${defenderFlags.damageNegatedCount}次伤害无效。`);
+    const text = `${defender.name}发动「${defender.passive.name}」，受到的第${defenderFlags.damageNegatedCount}次伤害无效。`;
+    log.push(text);
+    emitBattleEvent(emit, {
+      kind: 'major',
+      text,
+      actorId: defender.id,
+      targetId: attacker.id,
+      actorName: defender.name,
+      targetName: attacker.name,
+    });
   }
 
   if (damage > 0 && defender.passive?.id === 'enemy_shizuku_first_guard' && !defenderFlags.firstDamageHalved) {
@@ -672,17 +760,29 @@ function resolveAttack(
   const actualDamage = Math.min(damage, defenderDurabilityBefore);
   const attackText = `${attacker.name}攻击${defender.name}，造成${damage}伤害，${defender.name}剩余${defender.hp}HP。`;
   log.push(attackText);
-  emitBattleEvent(emit, {
-    kind: 'attack',
-    text: attackText,
-    actorId: attacker.id,
-    targetId: defender.id,
-    actorName: attacker.name,
-    targetName: defender.name,
-    amount: actualDamage,
-    shieldBlocked: Math.min(defenderShieldBefore, actualDamage),
-    hpLeft: defender.hp,
-  });
+  if (roleAdjustmentText) {
+    log.push(roleAdjustmentText);
+  }
+  if (actualDamage > 0) {
+    emitBattleEvent(emit, {
+      kind: 'attack',
+      text: attackText,
+      actorId: attacker.id,
+      targetId: defender.id,
+      actorName: attacker.name,
+      targetName: defender.name,
+      amount: actualDamage,
+      shieldBlocked: Math.min(defenderShieldBefore, actualDamage),
+      hpLeft: defender.hp,
+    });
+  } else {
+    emitBattleEvent(emit, {
+      kind: 'status',
+      text: attackText,
+      amount: 0,
+      hpLeft: defender.hp,
+    });
+  }
   if (defenderFlags.fatalGuardShieldPending && defender.hp > 0) {
     const shieldAmount = defenderFlags.fatalGuardShieldPending;
     defenderFlags.fatalGuardShieldPending = undefined;
@@ -1175,7 +1275,7 @@ function takeTurn(
     const attackBonus = upgradeLevel(attacker) >= 5 ? 5 : upgradeLevel(attacker) >= 3 ? 3 : 1;
     attacker.attack += attackBonus;
     attacker.speed += 1;
-    log.push(`${attacker.name}发动《${attacker.skill.name}》，变身完成，攻击力+${attackBonus}，速度+1。`);
+    log.push(`${attacker.name}发动《超级变身》，变身完成，攻击力+${attackBonus}，速度+1。`);
     return;
   }
 
@@ -1235,8 +1335,8 @@ function runGroupBattle(
   emit?: BattleEventEmitter,
 ) {
   setActiveSecondaryBondFlags(allies, runtime);
-  allies.forEach((ally) => prepareCombatant(ally, enemy, true, team, runtime, log));
-  prepareCombatant(enemy, allies[0], false, team, runtime, log);
+  allies.forEach((ally) => prepareCombatant(ally, enemy, true, team, runtime, log, emit));
+  prepareCombatant(enemy, allies[0], false, team, runtime, log, emit);
 
   const startText = `开始团队战斗：${allies.map((ally) => ally.name).join("、")} VS ${enemy.name}。`;
   log.push(startText);
@@ -1429,6 +1529,9 @@ export function resolveBattleGroup(
     text: enterText,
     targetName: allies.map((ally) => ally.name).join('、'),
   });
+  if (battleInput.type === 'boss' && enemies[0]) {
+    emitBossLine(emit, enemies[0], 'start');
+  }
   let activeEnemyIndex = battleInput.activeEnemyIndex;
   let winningAlly: Character | null = null;
 
@@ -1486,6 +1589,9 @@ export function resolveBattleGroup(
     const text = `战斗胜利，获得${rewardGold}金币。`;
     log.push(text);
     emitLogEvent(emit, 'victory', text);
+    if (battleInput.type === 'boss' && enemies[0]) {
+      emitBossLine(emit, enemies[0], 'lose');
+    }
   }
 
   if (phase === 'relay') {
@@ -1498,6 +1604,9 @@ export function resolveBattleGroup(
     const text = '所有伙伴都进入重伤状态，挑战失败。';
     log.push(text);
     emitLogEvent(emit, 'lost', text);
+    if (battleInput.type === 'boss' && enemies[0]) {
+      emitBossLine(emit, enemies[0], 'win');
+    }
   }
 
   const resolvedTeam = phase === 'won' || phase === 'lost' ? team.map(clearBattleOnlyState) : team;

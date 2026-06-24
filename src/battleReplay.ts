@@ -57,6 +57,16 @@ export function parseReplayEvent(entry: string): ReplayEvent {
     return { kind: 'shield', text: entry, actorName: shieldMatch[1], targetName: shieldMatch[1], amount: Number(shieldMatch[2]) };
   }
 
+  const calloutMatch = entry.match(/^(.+?)(?:发动|触发|消耗)[「《](.+?)[」》]/);
+  if (calloutMatch) {
+    return { kind: 'major', text: entry, actorName: calloutMatch[1] };
+  }
+
+  const criticalMatch = entry.match(/^(.+?)打出暴击。$/);
+  if (criticalMatch) {
+    return { kind: 'major', text: entry, actorName: criticalMatch[1] };
+  }
+
   const defeatMatch = entry.match(/^(.+?)被击败。$/);
   if (defeatMatch) {
     return { kind: 'defeat', text: entry, targetName: defeatMatch[1] };
@@ -171,6 +181,69 @@ export function groupTeamDamageEvents(events: ReplayEvent[], selectedMembers: Ch
   return grouped;
 }
 
+function hasCalloutText(event: ReplayEvent) {
+  return /(?:发动|触发|消耗)[「《].+?[」》]/.test(event.text) || event.text.includes('伤害无效') || event.text.includes('打出暴击');
+}
+
+function hydrateReplayEvent(event: ReplayEvent, combatants: Character[], fallbackUnits?: BattleUnitSnapshot[]) {
+  const actor = combatants.find((character) => nameMatches(character, event.actorName));
+  const target = combatants.find((character) => nameMatches(character, event.targetName));
+
+  return {
+    ...event,
+    actorId: event.actorId ?? actor?.id,
+    targetId: event.targetId ?? target?.id,
+    units: event.units ?? fallbackUnits ?? combatants.map((unit) => ({
+      id: unit.id,
+      hp: unit.hp,
+      maxHp: unit.maxHp,
+      shield: unit.shield,
+      injured: unit.injured,
+    })),
+  };
+}
+
+export function buildReplayEvents(events: ReplayEvent[] | undefined, log: string[], selectedMembers: Character[], combatants = selectedMembers) {
+  if (!events?.length) {
+    return groupTeamDamageEvents(log.map((entry) => hydrateReplayEvent(parseReplayEvent(entry), combatants)), selectedMembers);
+  }
+
+  const mergedEvents: ReplayEvent[] = [];
+  let eventIndex = 0;
+  let lastUnits = events[0]?.units;
+  const logTextSet = new Set(log);
+  const eventTextSet = new Set(events.map((event) => event.text));
+
+  log.forEach((entry) => {
+    while (events[eventIndex] && events[eventIndex].text !== entry && !logTextSet.has(events[eventIndex].text)) {
+      mergedEvents.push(hydrateReplayEvent(events[eventIndex], combatants));
+      lastUnits = events[eventIndex].units ?? lastUnits;
+      eventIndex += 1;
+    }
+
+    if (events[eventIndex]?.text === entry) {
+      mergedEvents.push(hydrateReplayEvent(events[eventIndex], combatants));
+      lastUnits = events[eventIndex].units ?? lastUnits;
+      eventIndex += 1;
+      return;
+    }
+
+    const parsed = parseReplayEvent(entry);
+    if (parsed.actorName && hasCalloutText(parsed) && !eventTextSet.has(entry)) {
+      const nextUnits = events[eventIndex]?.units;
+      mergedEvents.push(hydrateReplayEvent(parsed, combatants, lastUnits ?? nextUnits));
+    }
+  });
+
+  while (eventIndex < events.length) {
+    mergedEvents.push(hydrateReplayEvent(events[eventIndex], combatants));
+    lastUnits = events[eventIndex].units ?? lastUnits;
+    eventIndex += 1;
+  }
+
+  return groupTeamDamageEvents(mergedEvents, selectedMembers);
+}
+
 export function buildReplayStats(team: Character[], events: ReplayEvent[], replayStep: number, finalStats: BattleStats, replayDone: boolean): BattleStats {
   if (replayDone) {
     return finalStats;
@@ -227,4 +300,3 @@ export function applySnapshot(character: Character, units?: BattleUnitSnapshot[]
     injured: snapshot.injured,
   };
 }
-

@@ -20,13 +20,12 @@ import { getBattleIllustration } from '../battleAssets';
 import {
   type ReplayEvent,
   applySnapshot,
+  buildReplayEvents,
   buildReplayStats,
   getReplayTargetAmount,
-  groupTeamDamageEvents,
   isReplayPhase,
   isReplayTarget,
   nameMatches,
-  parseReplayEvent,
 } from '../battleReplay';
 
 export interface BattleScreenProps {
@@ -74,8 +73,22 @@ function battleFloatLabel(character: Character, replayEvent: ReplayEvent | null 
 }
 
 function battleCalloutLabel(character: Character, replayEvent: ReplayEvent | null | undefined) {
-  if (!replayEvent || !replayEvent.actorName || !nameMatches(character, replayEvent.actorName)) {
+  const isActor = replayEvent?.actorId === character.id || (replayEvent?.actorName ? nameMatches(character, replayEvent.actorName) : false);
+  if (!replayEvent || !isActor) {
     return null;
+  }
+
+  if (replayEvent.text.includes('伤害无效')) {
+    return '免疫';
+  }
+
+  if (character.passive?.id === 'elite_natsumi_traffic' && replayEvent.text.includes('打出暴击')) {
+    return '必定暴击';
+  }
+
+  const bossLineMatch = replayEvent.text.match(/^.+?「(.+?)」$/);
+  if (character.rarity === 'boss' && bossLineMatch && !/(?:发动|触发|消耗)/.test(replayEvent.text)) {
+    return bossLineMatch[1];
   }
 
   const calloutMatch = replayEvent.text.match(/(?:发动|触发|消耗)[「《](.+?)[」》]/);
@@ -84,14 +97,113 @@ function battleCalloutLabel(character: Character, replayEvent: ReplayEvent | nul
     return null;
   }
 
+  const eliteTriggerLabel = elitePassiveTriggerLabel(character, replayEvent.text);
+  if (eliteTriggerLabel) {
+    return eliteTriggerLabel;
+  }
+
+  const flavorCallout = legendaryFlavorCallout(character, replayEvent, callout);
+  if (flavorCallout) {
+    return flavorCallout;
+  }
+
   return callout;
+}
+
+const LEGENDARY_FLAVOR_CALLOUTS: Record<string, string> = {
+  nico: '妮可妮可妮',
+  mari: 'shiny!',
+  kanata: '好困Orz',
+  keke: '我太厉害了8',
+};
+
+function stableCalloutRoll(seed: string) {
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+  }
+  return (hash % 100) / 100;
+}
+
+function legendaryFlavorCallout(character: Character, replayEvent: ReplayEvent, callout: string) {
+  if (character.rarity !== 'legendary' || !LEGENDARY_FLAVOR_CALLOUTS[character.templateId]) {
+    return null;
+  }
+
+  if (!/(?:发动|触发|消耗)[「《]/.test(replayEvent.text) || callout === '免疫') {
+    return null;
+  }
+
+  return stableCalloutRoll(`${character.id}-${replayEvent.text}`) < 0.35
+    ? LEGENDARY_FLAVOR_CALLOUTS[character.templateId]
+    : null;
+}
+
+const ELITE_PASSIVE_INTRO_LABELS: Record<string, string> = {
+  elite_kanan_training: '每回合速度+1',
+  elite_riko_inspiration: '前两次伤害无效',
+  elite_umi_low_hp: '低血量攻击翻倍',
+  elite_kaho_never_give_up: '每2回合恢复15',
+  elite_emma_warm_power: '受击后攻击+2',
+  elite_kanon_center_stage: '低血量恢复30',
+  elite_setsuna_focus: '专注叠伤害',
+  elite_shioriko_execution: '半血以上减伤',
+  elite_natsumi_traffic: '必定暴击',
+};
+
+const ELITE_PASSIVE_TRIGGER_LABELS: Record<string, string> = {
+  elite_kanan_training: '速度+1',
+  elite_riko_inspiration: '免疫',
+  elite_umi_low_hp: '攻击翻倍',
+  elite_kaho_never_give_up: '坚持住！',
+  elite_emma_warm_power: '攻击+2',
+  elite_kanon_center_stage: '恢复30',
+  elite_setsuna_focus: '专注+1',
+  elite_shioriko_execution: '伤害减半',
+  elite_natsumi_traffic: '必定暴击',
+};
+
+function elitePassiveTriggerLabel(character: Character, text: string) {
+  const passiveId = character.passive?.id;
+  if (character.rarity !== 'elite' || !passiveId || !text.includes(character.passive?.name ?? '')) {
+    return null;
+  }
+
+  return ELITE_PASSIVE_TRIGGER_LABELS[passiveId] ?? null;
+}
+
+function passiveIntroLabel(character: Character, replayEvent: ReplayEvent | null | undefined) {
+  if (replayEvent?.kind !== 'start' || !character.passive?.description) {
+    return null;
+  }
+
+  if (replayEvent.actorId || replayEvent.actorName) {
+    const isActor = replayEvent.actorId === character.id || (replayEvent.actorName ? nameMatches(character, replayEvent.actorName) : false);
+    if (!isActor) {
+      return null;
+    }
+  } else {
+    return null;
+  }
+
+  if (character.rarity === 'elite') {
+    return ELITE_PASSIVE_INTRO_LABELS[character.passive.id] ?? null;
+  }
+
+  if (character.rarity !== 'enemy' || character.enemyTier !== 'strong') {
+    return null;
+  }
+
+  return character.passive.description
+    .replace(/[。，.]+$/u, '')
+    .replace(/\s+/g, '');
 }
 
 function BattleStandee({ character, replayEvent, side, defeated = false }: { character: Character; replayEvent?: ReplayEvent | null; side: 'enemy' | 'ally'; defeated?: boolean }) {
   const isActing = replayEvent?.actorName ? nameMatches(character, replayEvent.actorName) : false;
   const isTarget = isReplayTarget(character, replayEvent);
   const floatLabel = battleFloatLabel(character, replayEvent);
-  const calloutLabel = battleCalloutLabel(character, replayEvent);
+  const calloutLabel = battleCalloutLabel(character, replayEvent) ?? passiveIntroLabel(character, replayEvent);
   const legendarySkinScale: Record<string, number> = {
     nico: 0.72,
     keke: 0.72,
@@ -102,11 +214,14 @@ function BattleStandee({ character, replayEvent, side, defeated = false }: { cha
   const scale = side === 'enemy'
     ? enemyScale
     : legendarySkinScale[character.templateId] ?? 1.28;
+  const calloutBottom = side === 'enemy'
+    ? character.rarity === 'boss' ? '230px' : character.rarity === 'elite' ? '200px' : '186px'
+    : legendarySkinScale[character.templateId] ? '178px' : '214px';
 
   return (
     <div
       className={`battle-standee battle-standee-${side} rarity-${character.rarity} ${defeated ? 'defeated' : ''} ${isActing ? 'is-acting' : ''} ${isTarget ? `is-${replayEvent?.kind}` : ''}`.trim()}
-      style={{ '--standee-scale': scale } as CSSProperties}
+      style={{ '--standee-scale': scale, '--callout-bottom': calloutBottom } as CSSProperties}
     >
       {floatLabel && <span className={`battle-float-text float-${replayEvent?.kind}`} key={`${replayEvent?.text}-${character.id}-${floatLabel}`}>{floatLabel}</span>}
       {calloutLabel && <span className="battle-skill-callout" key={`${replayEvent?.text}-${character.id}-callout`}>{calloutLabel}</span>}
@@ -284,14 +399,10 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
   const isWon = battle.phase === 'won';
   const isBossWon = isWon && battle.type === 'boss' && boss.bossTier < 3;
   const selectedMemberIdsKey = selectedMembers.map((member) => member.id).join('|');
-  const replayEvents = useMemo<ReplayEvent[]>(() => {
-    const rawEvents = (
-    battle.events?.length
-      ? battle.events
-      : battle.log.map(parseReplayEvent)
-    );
-    return groupTeamDamageEvents(rawEvents, selectedMembers);
-  }, [battle.events, battle.log, selectedMemberIdsKey]);
+  const replayEvents = useMemo<ReplayEvent[]>(
+    () => buildReplayEvents(battle.events, battle.log, selectedMembers, [...team, ...battle.enemies]),
+    [battle.enemies, battle.events, battle.log, selectedMemberIdsKey, team],
+  );
   const replayEnabled = isReplayPhase(battle.phase) && replayEvents.length > 0;
   const [replayStep, setReplayStep] = useState(0);
   const replayKey = `${battle.nodeId}-${battle.phase}-${battle.activeEnemyIndex}-${battle.log.length}`;
@@ -345,8 +456,10 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
     }
 
     replayNotifiedKey.current = replayKey;
-    onReplayDone?.();
-  }, [onReplayDone, replayDone, replayEnabled, replayKey]);
+    const delay = battle.type === 'boss' && (battle.phase === 'won' || battle.phase === 'lost') ? 2000 : 0;
+    const timer = window.setTimeout(() => onReplayDone?.(), delay);
+    return () => window.clearTimeout(timer);
+  }, [battle.phase, battle.type, onReplayDone, replayDone, replayEnabled, replayKey]);
 
   return (
     <div className="battle-hud-screen">

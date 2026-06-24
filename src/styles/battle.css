@@ -312,17 +312,17 @@
 .battle-skill-callout {
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 12px);
+  bottom: var(--callout-bottom, 188px);
   z-index: 6;
   max-width: min(220px, 72vw);
   transform: translateX(-50%);
   pointer-events: none;
-  border: 2px solid rgba(118, 211, 141, 0.72);
+  border: 2px solid rgba(205, 216, 232, 0.86);
   border-radius: 18px 18px 18px 6px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 12px 28px rgba(37, 48, 77, 0.18);
   padding: 8px 13px;
-  color: #183520;
+  color: #26324c;
   font-size: 0.92rem;
   font-weight: 1000;
   line-height: 1.2;
@@ -345,17 +345,33 @@
   transform: rotate(45deg);
 }
 
-.battle-standee-enemy .battle-skill-callout {
-  border-color: rgba(255, 110, 132, 0.78);
-  background: rgba(255, 245, 247, 0.95);
-  color: #4a1520;
-  box-shadow: 0 12px 30px rgba(190, 53, 82, 0.2);
-}
-
-.battle-standee-enemy.rarity-boss .battle-skill-callout {
+.battle-standee-ally.rarity-star .battle-skill-callout {
   border-color: rgba(151, 108, 242, 0.82);
   background: linear-gradient(180deg, rgba(255, 249, 255, 0.97), rgba(250, 236, 255, 0.94));
   color: #3b1a5f;
+  box-shadow: 0 12px 30px rgba(105, 62, 172, 0.18);
+}
+
+.battle-standee-ally.rarity-legendary .battle-skill-callout {
+  border-color: rgba(236, 180, 61, 0.9);
+  background: linear-gradient(180deg, rgba(255, 252, 238, 0.98), rgba(255, 238, 177, 0.94));
+  color: #693d05;
+  box-shadow: 0 12px 30px rgba(192, 129, 25, 0.2);
+}
+
+.battle-standee-enemy.rarity-elite .battle-skill-callout,
+.battle-standee-enemy.rarity-enemy .battle-skill-callout {
+  border-color: rgba(205, 216, 232, 0.88);
+  background: rgba(255, 255, 255, 0.96);
+  color: #26324c;
+  box-shadow: 0 12px 28px rgba(37, 48, 77, 0.18);
+}
+
+.battle-standee-enemy.rarity-boss .battle-skill-callout {
+  border-color: rgba(255, 95, 116, 0.84);
+  background: linear-gradient(180deg, rgba(255, 247, 248, 0.98), rgba(255, 220, 226, 0.94));
+  color: #62121f;
+  box-shadow: 0 12px 30px rgba(190, 53, 82, 0.24);
 }
 
 .battle-float-text.slot-float {
@@ -869,6 +885,10 @@
 }
 
 @media (max-width: 980px) {
+  .battle-standee {
+    --callout-bottom: min(var(--callout-bottom, 188px), 178px);
+  }
+
   .battle-selection-top {
     grid-template-columns: 1fr;
   }

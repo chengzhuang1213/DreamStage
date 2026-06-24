@@ -474,6 +474,11 @@
   filter: grayscale(1) saturate(0.28) brightness(0.72);
 }
 
+.map-hud-shell .map-node.skipped {
+  opacity: 0.36;
+  filter: grayscale(1) saturate(0.16) brightness(0.64);
+}
+
 .map-hud-shell .map-node.entering {
   z-index: 6;
   pointer-events: none;
@@ -513,6 +518,11 @@
 
 .map-node.completed .node-icon-art {
   opacity: 0.54;
+  filter: grayscale(1);
+}
+
+.map-node.skipped .node-icon-art {
+  opacity: 0.42;
   filter: grayscale(1);
 }
 

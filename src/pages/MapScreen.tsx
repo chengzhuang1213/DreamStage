@@ -168,6 +168,7 @@ function MapNodeButton({
   scrollRef,
   entering,
   pulse,
+  skipped,
 }: {
   node: MapNode;
   onEnter: (node: MapNode) => void;
@@ -175,13 +176,14 @@ function MapNodeButton({
   scrollRef?: (element: HTMLButtonElement | null) => void;
   entering?: boolean;
   pulse?: boolean;
+  skipped?: boolean;
 }) {
   const position = getNodePosition(node);
   const canPreview = node.available && !node.completed;
 
   return (
     <button
-      className={`map-node node-${node.type} ${node.completed ? 'completed' : ''} ${node.available ? 'available' : ''} ${entering ? 'entering' : ''} ${pulse ? 'just-completed' : ''}`}
+      className={`map-node node-${node.type} ${node.completed ? 'completed' : ''} ${node.available ? 'available' : ''} ${skipped ? 'skipped' : ''} ${entering ? 'entering' : ''} ${pulse ? 'just-completed' : ''}`}
       disabled={!node.available || node.completed}
       onFocus={() => canPreview && onPreview(node)}
       onClick={() => onEnter(node)}
@@ -517,6 +519,11 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
   const defaultAvailableNode = nodes.find((node) => node.available && !node.completed) ?? null;
   const cursorNode = enteringNode ?? hoveredNode ?? lastCompletedNode ?? defaultAvailableNode;
   const scrollTargetNode = defaultAvailableNode ?? lastCompletedNode;
+  const progressedPastRow = Math.max(
+    -1,
+    ...nodes.filter((node) => node.completed).map((node) => node.row),
+    ...nodes.filter((node) => node.available && !node.completed).map((node) => node.row - 1),
+  );
 
   useEffect(() => {
     if (previousGoldRef.current === gold) {
@@ -608,6 +615,7 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
             <MapNodeButton
               key={node.id}
               node={node}
+              skipped={!node.completed && !node.available && node.row <= progressedPastRow}
               entering={enteringNodeId === node.id}
               pulse={pulseNodeId === node.id}
               onEnter={handleEnterNode}

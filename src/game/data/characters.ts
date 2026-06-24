@@ -90,7 +90,7 @@ export const CHARACTER_POOL: CharacterTemplate[] = [
     },
     skill: {
       id: 'kotori_crit',
-      name: '精准打击',
+      name: '羽翼打击',
       description: '暴击率30%，暴击造成2倍伤害。',
     },
   },
@@ -182,7 +182,7 @@ export const CHARACTER_POOL: CharacterTemplate[] = [
     },
     skill: {
       id: 'mari_shield',
-      name: '理事长的完美谢幕',
+      name: '完美谢幕',
       description: '进行一次攻击。若拥有护盾，本次攻击必定暴击并造成1.5倍伤害；Lv5在4级战意下追加队友攻击力总和65%的伤害。',
     },
   },

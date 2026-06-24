@@ -22,7 +22,7 @@ export const BOSS_TEMPLATES: BossTemplate[] = [
     },
     skill: {
       id: 'boss_honoka_rush',
-      name: '元气冲刺',
+      name: '干巴爹！',
       description: '冷却1回合。本次攻击造成1.5倍伤害。',
     },
   },
@@ -47,7 +47,7 @@ export const BOSS_TEMPLATES: BossTemplate[] = [
     },
     skill: {
       id: 'boss_chika_together',
-      name: '大家一起！',
+      name: '奇迹不会结束！',
       description: '冷却1回合。恢复10点生命。',
     },
   },
@@ -72,7 +72,7 @@ export const BOSS_TEMPLATES: BossTemplate[] = [
     },
     skill: {
       id: 'boss_dia_authority',
-      name: '学生会权威',
+      name: '学生会长的命令！',
       description: '冷却1回合。获得25点护盾。',
     },
   },
@@ -122,7 +122,7 @@ export const BOSS_TEMPLATES: BossTemplate[] = [
     },
     skill: {
       id: 'boss_chisato_training',
-      name: '全力训练',
+      name: '舞动奇迹！',
       description: '冷却1回合。本场战斗速度永久+2。',
     },
   },
@@ -148,7 +148,7 @@ export const BOSS_TEMPLATES: BossTemplate[] = [
     },
     skill: {
       id: 'boss_maki_passion',
-      name: '激情演奏',
+      name: '烦死啦！',
       description: '冷却1回合。本次攻击造成1.5倍伤害。',
     },
   },
