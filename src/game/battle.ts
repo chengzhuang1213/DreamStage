@@ -1002,31 +1002,37 @@ function takeTurn(
     const baseHeal = upgradeLevel(attacker) >= 3 ? 15 : 10;
     const bonus = flags.ayumuHealBonus ?? 0;
     const amount = baseHeal + bonus;
+    const woundedAllies = team.filter((member) => !member.injured && member.hp > 0 && member.hp < member.maxHp);
     const targets = upgradeLevel(attacker) >= 2
-      ? team.filter((member) => !member.injured && member.hp > 0)
-      : [team
-          .filter((member) => !member.injured && member.hp > 0)
-          .sort((left, right) => left.hp / left.maxHp - right.hp / right.maxHp)[0] ?? attacker];
-    targets.forEach((member) => {
-      heal(member, amount);
-    });
-    flags.ayumuHealBonus = bonus + 3;
-    if (upgradeLevel(attacker) < 4) {
-      flags.skillCooldown = 1;
+      ? woundedAllies
+      : woundedAllies
+          .sort((left, right) => left.hp / left.maxHp - right.hp / right.maxHp)
+          .slice(0, 1);
+
+    if (targets.length > 0) {
+      let totalRestored = 0;
+      targets.forEach((member) => {
+        totalRestored += heal(member, amount);
+      });
+      flags.ayumuHealBonus = bonus + 3;
+      if (upgradeLevel(attacker) < 4) {
+        flags.skillCooldown = 1;
+      }
+      const targetName = upgradeLevel(attacker) >= 2 ? '受伤友方' : targets[0].name;
+      const text = `${attacker.name}发动《${attacker.skill.name}》，${targetName}恢复${totalRestored}HP，后续治疗量+3。`;
+      log.push(text);
+      emitBattleEvent(emit, {
+        kind: 'heal',
+        text,
+        actorId: attacker.id,
+        targetId: upgradeLevel(attacker) >= 2 ? undefined : targets[0]?.id,
+        actorName: attacker.name,
+        targetName,
+        amount: totalRestored,
+        hpLeft: attacker.hp,
+      });
+      return;
     }
-    const text = `${attacker.name}发动《${attacker.skill.name}》，${upgradeLevel(attacker) >= 2 ? '全体友方' : targets[0].name}恢复${amount}HP，后续治疗量+3。`;
-    log.push(text);
-    emitBattleEvent(emit, {
-      kind: 'heal',
-      text,
-      actorId: attacker.id,
-      targetId: upgradeLevel(attacker) >= 2 ? undefined : targets[0]?.id,
-      actorName: attacker.name,
-      targetName: upgradeLevel(attacker) >= 2 ? '全体友方' : targets[0]?.name,
-      amount,
-      hpLeft: attacker.hp,
-    });
-    return;
   }
 
   if (attacker.passive?.id === 'boss_honoka_growth' || attacker.passive?.id === 'boss_maki_growth') {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import {
   CHARACTER_POOL,
   NODE_LABELS,
@@ -24,7 +24,7 @@ import {
   resolveBattleGroup,
 } from './game';
 import { MUSIC_SRC, SFX_SRC, type MusicKey, type SfxKey } from './assets';
-import { Avatar, MusicToggleButton } from './components/common';
+import { MusicToggleButton } from './components/common';
 import { BattleResultModal, RunStatsModal } from './components/battleLog';
 import { CompactRunSidePanel } from './components/bonds';
 import { BattleScreen } from './pages/BattleScreen';
@@ -35,6 +35,13 @@ import { EndScreen, ResultScreen } from './pages/ResultScreens';
 import { ShopScreen } from './pages/ShopScreen';
 import { StartScreen } from './pages/StartScreen';
 import { DraftScreen } from './pages/DraftScreen';
+import {
+  BOSS_BLESSING_TRANSITION_MS,
+  BossBlessingTransition,
+  START_TRANSITION_MS,
+  SakuraLayer,
+  SceneParticles,
+} from './components/sceneEffects';
 
 type Screen = 'start' | 'draft' | 'map' | 'battle' | 'result' | 'shop' | 'rest' | 'blessing' | 'win' | 'loss';
 
@@ -86,11 +93,6 @@ interface RunState {
 }
 
 type HealType = 'small' | 'large';
-
-const SAKURA_PETALS = Array.from({ length: 26 }, (_, index) => index);
-const SCENE_PARTICLES = Array.from({ length: 18 }, (_, index) => index);
-const START_TRANSITION_MS = 1800;
-const BOSS_BLESSING_TRANSITION_MS = 1700;
 
 const HEAL_OPTIONS: Record<HealType, { label: string; cost: number; amount: number; full?: boolean }> = {
   small: { label: '小治疗', cost: 20, amount: 15 },
@@ -184,41 +186,6 @@ function maxUpgradeLevel(rarity: Character['rarity'] | CharacterTemplate['rarity
     return 5;
   }
   return 1;
-}
-
-function BossBlessingTransition({ team }: { team: Character[] }) {
-  const visibleTeam = team.slice(0, 4);
-
-  return (
-    <div className="boss-blessing-transition" aria-hidden="true">
-      <div className="boss-blessing-aura" />
-      <div className="boss-blessing-copy">
-        <span>Stage Clear</span>
-        <strong>祝福降临</strong>
-      </div>
-      <div className="boss-blessing-team" style={{ '--blessing-count': Math.max(1, visibleTeam.length) } as CSSProperties}>
-        {visibleTeam.map((member, index) => (
-          <div
-            className={`boss-blessing-member rarity-${member.rarity}`}
-            key={member.id}
-            style={{ '--member-delay': `${index * 120}ms` } as CSSProperties}
-          >
-            <Avatar character={member} label={member.name} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SceneParticles({ variant }: { variant: string }) {
-  return (
-    <div className={`scene-particles particles-${variant}`} aria-hidden="true">
-      {SCENE_PARTICLES.map((particle) => (
-        <span key={particle} className="scene-particle" />
-      ))}
-    </div>
-  );
 }
 
 function App() {
@@ -933,11 +900,7 @@ function App() {
   if (run.screen === 'start') {
     return (
       <div className={`app-shell start-shell scene-home ${startTransitioning ? 'is-entering' : ''}`}>
-        <div className="sakura-layer" aria-hidden="true">
-          {SAKURA_PETALS.map((petal) => (
-            <span key={petal} className="sakura-petal" />
-          ))}
-        </div>
+        <SakuraLayer />
         {startTransitioning && <div className="start-transition-flash" aria-hidden="true" />}
         <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
         <StartScreen onStart={startGame} />

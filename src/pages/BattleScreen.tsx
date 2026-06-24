@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type { BattleEvent, BattleState, BattleUnitSnapshot, BossTemplate, BossTier, Character } from '../game';
+import type { BattleState, BossTemplate, BossTier, Character } from '../game';
 import type { BattleStats } from '../game';
 import {
   GROUP_LABELS,
@@ -16,68 +16,18 @@ import { CharacterCard } from '../components/cards';
 import { EnhanceModal } from '../components/EnhanceModal';
 import { InfoPill, rarityDetail, roleDetail } from '../components/info';
 import { HighlightText } from '../game/data/upgrades';
-
-const ENEMY_ILLUSTRATIONS: Record<string, string> = {
-  enemy_rin: '/cards/Enemy_Images/2Hoshizora-Rin-hO1h4C.png',
-  enemy_ai: '/cards/Enemy_Images/62Miyashita-Ai-f38Jhw.png',
-  enemy_mia: '/cards/Enemy_Images/123Mia-Taylor-jCx23M.png',
-  enemy_lanzhu: '/cards/Enemy_Images/124Lanzhu-aPGOOW.png',
-  enemy_sumire: '/cards/Enemy_Images/121Heanna-Sumire-Ben4YX.png',
-  enemy_kinako: '/cards/Enemy_Images/172Sakurakoji-Kinako-ZyHhGE.png',
-  enemy_shiki: '/cards/Enemy_Images/174Wakana-Shiki-r1LpGa.png',
-  enemy_mei: '/cards/Enemy_Images/173Yoneme-Mei-6Ywcqq.png',
-  enemy_polka: '/cards/Enemy_Images/267Polka-Takahashi-W1qD4B.png',
-  enemy_miracle_kana: '/cards/Enemy_Images/271Miracle-Kanazawa-e47sZw.png',
-  enemy_noriko: '/cards/Enemy_Images/272Noriko-Chofu-WK3G8D.png',
-  enemy_hanayo: '/cards/Enemy_Images/3Koizumi-Hanayo-wuvH3R.png',
-  enemy_hanamaru: '/cards/Enemy_Images/5Kunikida-Hanamaru-TomAYd.png',
-  enemy_ruby: '/cards/Enemy_Images/7Kurosawa-Ruby-RoBWBL.png',
-  enemy_karin: '/cards/Enemy_Images/24Asaka-Karin-3nF3em.png',
-  enemy_kasumi: '/cards/Enemy_Images/67Nakasu-Kasumi-rQd4Or.png',
-  enemy_shizuku: '/cards/Enemy_Images/70Osaka-Shizuku-1WGIlr.png',
-  enemy_margarete: '/cards/Enemy_Images/178Margarete-Wien-qc6kCY.png',
-  enemy_kozue: '/cards/Enemy_Images/205Kozue-Otomune-kNrbPK.png',
-  enemy_tsuzuri: '/cards/Enemy_Images/206Tsuzuri-Yugiri-3KKfOJ.png',
-  enemy_rurino: '/cards/Enemy_Images/207Rurino-Osawa-DKPmwE.png',
-  enemy_ceras: '/cards/Enemy_Images/230Lilienfeld-Yanagida-Ceras-hVBTJn.png',
-  elite_kanan: '/cards/Enemy_Images/8Matsuura-Kanan-aT2Td5.png',
-  elite_riko: '/cards/Enemy_Images/12Sakurauchi-Riko-p2EuTb.png',
-  elite_umi: '/cards/Enemy_Images/13Sonoda-Umi-rxgV8z.png',
-  elite_kaho: '/cards/Enemy_Images/203Kaho-Hinoshita-PS7Ud5.png',
-  elite_emma: '/cards/Enemy_Images/28Emma-Verde-pVzmKV.png',
-  elite_kanon: '/cards/Enemy_Images/118Shibuya-Kanon-if8zlW.png',
-  elite_setsuna: '/cards/Enemy_Images/110Yuki-Setsuna-2gVQWE.png',
-  elite_shioriko: '/cards/Enemy_Images/113Mifune-Shioriko-tNDNRT.png',
-  elite_natsumi: '/cards/Enemy_Images/175Onitsuka-Natsumi-6nLfeH.png',
-  boss_honoka: '/cards/Enemy_Images/4Kousaka-Honoka-2nSYRU.png',
-  boss_chika: '/cards/Enemy_Images/14Takami-Chika-MumE0U.png',
-  boss_dia: '/cards/Enemy_Images/6Kurosawa-Dia-6ovIG8.png',
-  boss_kasumi: '/cards/Enemy_Images/67Nakasu-Kasumi-rQd4Or.png',
-  boss_chisato: '/cards/Enemy_Images/120Arashi-Chisato-eySO7L.png',
-  boss_maki: '/cards/Enemy_Images/10Nishikino-Maki-UFQB4E.png',
-};
-
-const HERO_ILLUSTRATIONS: Record<string, string> = {
-  ayumu: '/cards/Image/102Uehara-Ayumu-KN13pl.png',
-  rina: '/cards/Image/97Tennoji-Rina-YB8JUo.png',
-  nico: '/cards/Image/18Yazawa-Nico-agidhY.png',
-  kotori: '/cards/Image/9Minami-Kotori-BkWR39.png',
-  keke: '/cards/Image/119Tang-Keke-4Tr0Yx.png',
-  you: '/cards/Image/17Watanabe-You-En1r2L.png',
-  eli: '/cards/Image/1Ayase-Eli-wRbUwD.png',
-  mari: '/cards/Image/11Ohara-Mari-nI3CW6.png',
-  ren: '/cards/Image/122Hazuki-Ren-fZ9vXK.png',
-  yoshiko: '/cards/Image/16Tsushima-Yoshiko-NdFuZH.png',
-  nozomi: '/cards/Image/15Toujou-Nozomi-S678cZ.png',
-  kanata: '/cards/Image/50Konoe-Kanata-82Ei8T.png',
-};
-
-const HERO_SKIN_ILLUSTRATIONS: Record<string, string> = {
-  nico: '/cards/Image/Image_Skins/矢泽妮可皮肤.battle.png',
-  keke: '/cards/Image/Image_Skins/唐可可皮肤.battle.png',
-  mari: '/cards/Image/Image_Skins/小原鞠莉皮肤.battle.png',
-  kanata: '/cards/Image/Image_Skins/近江彼方皮肤.battle.png',
-};
+import { getBattleIllustration } from '../battleAssets';
+import {
+  type ReplayEvent,
+  applySnapshot,
+  buildReplayStats,
+  getReplayTargetAmount,
+  groupTeamDamageEvents,
+  isReplayPhase,
+  isReplayTarget,
+  nameMatches,
+  parseReplayEvent,
+} from '../battleReplay';
 
 export interface BattleScreenProps {
   battle: BattleState;
@@ -102,242 +52,6 @@ function hpPercent(character: Pick<Character, 'hp' | 'maxHp'>) {
   return `${Math.max(0, Math.min(100, Math.round((character.hp / character.maxHp) * 100)))}%`;
 }
 
-type ReplayEventKind = BattleEvent['kind'];
-
-interface ReplayEvent {
-  kind: ReplayEventKind;
-  text: string;
-  actorId?: string;
-  targetId?: string;
-  targetIds?: string[];
-  actorName?: string;
-  targetName?: string;
-  targetNames?: string[];
-  amount?: number;
-  amountsByTarget?: Record<string, number>;
-  shieldBlocked?: number;
-  hpLeft?: number;
-  units?: BattleUnitSnapshot[];
-}
-
-function parseReplayEvent(entry: string): ReplayEvent {
-  if (/^第\d+回合。$/.test(entry)) {
-    return { kind: 'round', text: entry };
-  }
-
-  const attackMatch = entry.match(/^(.+?)攻击(.+?)，造成(\d+)伤害，.+?剩余(\d+)HP。$/);
-  if (attackMatch) {
-    return {
-      kind: 'attack',
-      text: entry,
-      actorName: attackMatch[1],
-      targetName: attackMatch[2],
-      amount: Number(attackMatch[3]),
-      hpLeft: Number(attackMatch[4]),
-    };
-  }
-
-  const extraDamageMatch = entry.match(/^(.+?)(?:触发|发动).+?造成(\d+)点.+?，(.+?)剩余(\d+)HP。$/);
-  if (extraDamageMatch) {
-    return {
-      kind: 'attack',
-      text: entry,
-      actorName: extraDamageMatch[1],
-      targetName: extraDamageMatch[3],
-      amount: Number(extraDamageMatch[2]),
-      hpLeft: Number(extraDamageMatch[4]),
-    };
-  }
-
-  const healMatch = entry.match(/^(.+?)(?:发动|触发).+?恢复(\d+)HP。$/) ?? entry.match(/^(.+?)恢复(\d+)HP。$/);
-  if (healMatch) {
-    return { kind: 'heal', text: entry, actorName: healMatch[1], targetName: healMatch[1], amount: Number(healMatch[2]) };
-  }
-
-  const shieldMatch = entry.match(/^(.+?)受到?.*?获得(\d+)护盾/) ?? entry.match(/^(.+?)获得(\d+)护盾/);
-  if (shieldMatch) {
-    return { kind: 'shield', text: entry, actorName: shieldMatch[1], targetName: shieldMatch[1], amount: Number(shieldMatch[2]) };
-  }
-
-  const defeatMatch = entry.match(/^(.+?)被击败。$/);
-  if (defeatMatch) {
-    return { kind: 'defeat', text: entry, targetName: defeatMatch[1] };
-  }
-
-  return { kind: 'major', text: entry };
-}
-
-function isReplayPhase(phase: BattleState['phase']) {
-  return phase === 'won' || phase === 'lost' || phase === 'relay';
-}
-
-function normalizeBattleName(name: string) {
-  return name.replace(/^对手\s*/, '').replace(/^敌方/, '').replace(/^Boss\s*/, '').replace(/^精英\s*/, '').trim();
-}
-
-function nameMatches(character: Character, maybeName?: string) {
-  if (!maybeName) {
-    return false;
-  }
-
-  const normalizedCharacter = normalizeBattleName(character.name);
-  const normalizedName = normalizeBattleName(maybeName);
-  return character.name.includes(maybeName) || maybeName.includes(character.name) || normalizedCharacter === normalizedName || normalizedName.includes(normalizedCharacter);
-}
-
-function getReplayTargetNames(event?: ReplayEvent | null) {
-  return event?.targetNames ?? (event?.targetName ? [event.targetName] : []);
-}
-
-function isReplayTarget(character: Character, event?: ReplayEvent | null) {
-  if (!event) {
-    return false;
-  }
-
-  if (event.targetIds?.includes(character.id) || event.targetId === character.id) {
-    return true;
-  }
-
-  return getReplayTargetNames(event).some((name) => nameMatches(character, name));
-}
-
-function getReplayTargetAmount(character: Character, event?: ReplayEvent | null) {
-  if (!event) {
-    return 0;
-  }
-
-  return event.amountsByTarget?.[character.id] ?? (isReplayTarget(character, event) ? event.amount ?? 0 : 0);
-}
-
-function groupTeamDamageEvents(events: ReplayEvent[], selectedMembers: Character[]) {
-  const selectedIds = new Set(selectedMembers.map((member) => member.id));
-  const grouped: ReplayEvent[] = [];
-
-  for (let index = 0; index < events.length; index += 1) {
-    const event = events[index];
-    const canGroup =
-      (event.kind === 'attack' || event.kind === 'damage') &&
-      Boolean(event.actorId) &&
-      Boolean(event.targetId) &&
-      selectedIds.has(event.targetId ?? '') &&
-      !selectedIds.has(event.actorId ?? '');
-
-    if (!canGroup) {
-      grouped.push(event);
-      continue;
-    }
-
-    const targetIds = [event.targetId!];
-    const targetNames = event.targetName ? [event.targetName] : [];
-    const amountsByTarget: Record<string, number> = { [event.targetId!]: event.amount ?? 0 };
-    let lastEvent = event;
-    let cursor = index + 1;
-
-    while (cursor < events.length) {
-      const next = events[cursor];
-      const sameEnemyGroup =
-        (next.kind === 'attack' || next.kind === 'damage') &&
-        next.actorId === event.actorId &&
-        Boolean(next.targetId) &&
-        selectedIds.has(next.targetId ?? '') &&
-        !targetIds.includes(next.targetId!);
-
-      if (!sameEnemyGroup) {
-        break;
-      }
-
-      targetIds.push(next.targetId!);
-      if (next.targetName) {
-        targetNames.push(next.targetName);
-      }
-      amountsByTarget[next.targetId!] = next.amount ?? 0;
-      lastEvent = next;
-      cursor += 1;
-    }
-
-    grouped.push({
-      ...lastEvent,
-      text: targetNames.length > 1 ? `${event.actorName ?? '敌人'}攻击${targetNames.join('、')}。` : event.text,
-      actorId: event.actorId,
-      actorName: event.actorName,
-      targetId: event.targetId,
-      targetIds,
-      targetName: targetNames[0] ?? event.targetName,
-      targetNames,
-      amount: Object.values(amountsByTarget).reduce((sum, amount) => sum + amount, 0),
-      amountsByTarget,
-    });
-    index = cursor - 1;
-  }
-
-  return grouped;
-}
-
-function buildReplayStats(team: Character[], events: ReplayEvent[], replayStep: number, finalStats: BattleStats, replayDone: boolean): BattleStats {
-  if (replayDone) {
-    return finalStats;
-  }
-
-  const teamIds = new Set(team.map((member) => member.id));
-  const stats: BattleStats = {};
-
-  team.forEach((member) => {
-    stats[member.id] = {
-      characterId: member.id,
-      name: member.name,
-      damageDealt: 0,
-      damageTaken: 0,
-      shieldBlocked: 0,
-      criticalHits: 0,
-    };
-  });
-
-  events.slice(0, replayStep + 1).forEach((event) => {
-    if (event.kind !== 'attack' && event.kind !== 'damage') {
-      return;
-    }
-
-    if (event.actorId && teamIds.has(event.actorId)) {
-      stats[event.actorId].damageDealt += event.amount ?? 0;
-    }
-
-    const targetIds = event.targetIds ?? (event.targetId ? [event.targetId] : []);
-    targetIds.forEach((targetId) => {
-      if (!teamIds.has(targetId)) {
-        return;
-      }
-
-      stats[targetId].damageTaken += event.amountsByTarget?.[targetId] ?? event.amount ?? 0;
-      stats[targetId].shieldBlocked += event.shieldBlocked ?? 0;
-    });
-  });
-
-  return stats;
-}
-
-function applySnapshot(character: Character, units?: BattleUnitSnapshot[]) {
-  const snapshot = units?.find((unit) => unit.id === character.id);
-  if (!snapshot) {
-    return character;
-  }
-
-  return {
-    ...character,
-    hp: snapshot.hp,
-    maxHp: snapshot.maxHp,
-    shield: snapshot.shield,
-    injured: snapshot.injured,
-  };
-}
-
-function getBattleIllustration(character: Character) {
-  if (character.rarity === 'legendary' && HERO_SKIN_ILLUSTRATIONS[character.templateId]) {
-    return HERO_SKIN_ILLUSTRATIONS[character.templateId];
-  }
-
-  return ENEMY_ILLUSTRATIONS[character.templateId] ?? HERO_ILLUSTRATIONS[character.templateId] ?? character.avatar;
-}
-
 function battleFloatLabel(character: Character, replayEvent: ReplayEvent | null | undefined) {
   const amount = getReplayTargetAmount(character, replayEvent);
   if (!amount) {
@@ -359,10 +73,25 @@ function battleFloatLabel(character: Character, replayEvent: ReplayEvent | null 
   return null;
 }
 
+function battleCalloutLabel(character: Character, replayEvent: ReplayEvent | null | undefined) {
+  if (!replayEvent || !replayEvent.actorName || !nameMatches(character, replayEvent.actorName)) {
+    return null;
+  }
+
+  const calloutMatch = replayEvent.text.match(/(?:发动|触发|消耗)[「《](.+?)[」》]/);
+  const callout = calloutMatch?.[1]?.trim();
+  if (!callout || callout === '普通攻击') {
+    return null;
+  }
+
+  return callout;
+}
+
 function BattleStandee({ character, replayEvent, side, defeated = false }: { character: Character; replayEvent?: ReplayEvent | null; side: 'enemy' | 'ally'; defeated?: boolean }) {
   const isActing = replayEvent?.actorName ? nameMatches(character, replayEvent.actorName) : false;
   const isTarget = isReplayTarget(character, replayEvent);
   const floatLabel = battleFloatLabel(character, replayEvent);
+  const calloutLabel = battleCalloutLabel(character, replayEvent);
   const legendarySkinScale: Record<string, number> = {
     nico: 0.72,
     keke: 0.72,
@@ -380,6 +109,7 @@ function BattleStandee({ character, replayEvent, side, defeated = false }: { cha
       style={{ '--standee-scale': scale } as CSSProperties}
     >
       {floatLabel && <span className={`battle-float-text float-${replayEvent?.kind}`} key={`${replayEvent?.text}-${character.id}-${floatLabel}`}>{floatLabel}</span>}
+      {calloutLabel && <span className="battle-skill-callout" key={`${replayEvent?.text}-${character.id}-callout`}>{calloutLabel}</span>}
       <img src={getBattleIllustration(character)} alt="" draggable={false} />
       <div className="battle-standee-name">
         <strong>{character.name.replace('对手 ', '').replace('敌方', '').replace('Boss ', '').replace('精英 ', '')}</strong>
