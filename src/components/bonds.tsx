@@ -1,4 +1,5 @@
 import type { Character } from '../game';
+import { useEffect, useRef, useState } from 'react';
 import {
   CHARACTER_POOL,
   GROUP_LABELS,
@@ -15,7 +16,18 @@ function getTemplateById(id: string) {
   return CHARACTER_POOL.find((character) => character.id === id) ?? null;
 }
 
+function getActiveBondKeys(team: Character[]) {
+  return [
+    ...getActiveBonds(team).filter((bond) => bond.level > 0).map((bond) => bond.group.id),
+    ...getActiveSecondaryBonds(team).filter((bond) => bond.active).map((bond) => bond.bond.id),
+  ];
+}
+
 export function CompactRunSidePanel({ team, onRestart }: { team: Character[]; onRestart: () => void }) {
+  const [newMemberId, setNewMemberId] = useState<string | null>(null);
+  const [flashingBondIds, setFlashingBondIds] = useState<Set<string>>(new Set());
+  const previousTeamIdsRef = useRef(team.map((member) => member.id).join('|'));
+  const previousActiveBondIdsRef = useRef(getActiveBondKeys(team).join('|'));
   const slots = Array.from({ length: 4 }, (_, index) => team[index] ?? null);
   const ownedIds = new Set(team.map((member) => member.templateId));
   const primaryBonds = getActiveBonds(team).filter((bond) => bond.count > 0);
@@ -48,6 +60,36 @@ export function CompactRunSidePanel({ team, onRestart }: { team: Character[]; on
     })),
   ].sort((left, right) => Number(right.active) - Number(left.active) || right.count - left.count || right.total - left.total).slice(0, 6);
 
+  useEffect(() => {
+    const previousIds = new Set(previousTeamIdsRef.current.split('|').filter(Boolean));
+    const currentIds = team.map((member) => member.id);
+    const addedId = currentIds.find((id) => !previousIds.has(id)) ?? null;
+    previousTeamIdsRef.current = currentIds.join('|');
+
+    if (!addedId) {
+      return;
+    }
+
+    setNewMemberId(addedId);
+    const timer = window.setTimeout(() => setNewMemberId(null), 840);
+    return () => window.clearTimeout(timer);
+  }, [team]);
+
+  useEffect(() => {
+    const previousIds = new Set(previousActiveBondIdsRef.current.split('|').filter(Boolean));
+    const currentIds = getActiveBondKeys(team);
+    const activatedIds = currentIds.filter((id) => !previousIds.has(id));
+    previousActiveBondIdsRef.current = currentIds.join('|');
+
+    if (activatedIds.length === 0) {
+      return;
+    }
+
+    setFlashingBondIds(new Set(activatedIds));
+    const timer = window.setTimeout(() => setFlashingBondIds(new Set()), 980);
+    return () => window.clearTimeout(timer);
+  }, [team]);
+
   return (
     <aside className="side-panel compact-run-side-panel">
       <section className="hud-card team-dock">
@@ -58,7 +100,7 @@ export function CompactRunSidePanel({ team, onRestart }: { team: Character[]; on
         <div className="team-dock-grid">
           {slots.map((member, index) =>
             member ? (
-              <div className={`team-dock-member rarity-${member.rarity} ${member.injured ? 'injured' : ''}`} key={member.id} tabIndex={0}>
+              <div className={`team-dock-member rarity-${member.rarity} ${member.injured ? 'injured' : ''} ${newMemberId === member.id ? 'new-member' : ''}`} key={member.id} tabIndex={0}>
                 <Avatar character={member} label={member.name} />
                 <span>{member.injured ? '重伤' : `${member.hp}/${member.maxHp}`}</span>
                 <div className="dock-popover team-dock-popover">
@@ -84,7 +126,7 @@ export function CompactRunSidePanel({ team, onRestart }: { team: Character[]; on
         </div>
         <div className="bond-progress-list">
           {visibleBonds.map((bond) => (
-            <div className={`bond-progress-row ${bond.secondary ? 'secondary' : ''} ${bond.active ? 'active' : 'inactive'}`} key={bond.id} tabIndex={0}>
+            <div className={`bond-progress-row ${bond.secondary ? 'secondary' : ''} ${bond.active ? 'active' : 'inactive'} ${flashingBondIds.has(bond.id) ? 'bond-flash' : ''}`} key={bond.id} tabIndex={0}>
               <span className="bond-dot"><img src={bond.logoSrc} alt="" /></span>
               <em>{bond.count}/{bond.total}</em>
               <div className="dock-popover bond-dock-popover">

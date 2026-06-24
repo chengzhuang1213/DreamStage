@@ -207,6 +207,42 @@ export interface CharacterBattleStats {
 
 export type BattleStats = Record<string, CharacterBattleStats>;
 
+export interface BattleUnitSnapshot {
+  id: string;
+  hp: number;
+  maxHp: number;
+  shield: number;
+  injured: boolean;
+}
+
+export type BattleEventKind =
+  | 'start'
+  | 'round'
+  | 'attack'
+  | 'damage'
+  | 'heal'
+  | 'shield'
+  | 'status'
+  | 'defeat'
+  | 'victory'
+  | 'relay'
+  | 'lost'
+  | 'major';
+
+export interface BattleEvent {
+  id: string;
+  kind: BattleEventKind;
+  text: string;
+  actorId?: string;
+  targetId?: string;
+  actorName?: string;
+  targetName?: string;
+  amount?: number;
+  shieldBlocked?: number;
+  hpLeft?: number;
+  units: BattleUnitSnapshot[];
+}
+
 export interface BattleState {
   nodeId: string;
   type: BattleType;
@@ -217,6 +253,7 @@ export interface BattleState {
   phase: BattlePhase;
   rewardGold: number;
   log: string[];
+  events: BattleEvent[];
   runtime: RuntimeState;
   stats: BattleStats;
 }

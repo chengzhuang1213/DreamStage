@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import {
   CHARACTER_POOL,
   NODE_LABELS,
@@ -24,7 +24,7 @@ import {
   resolveBattleGroup,
 } from './game';
 import { MUSIC_SRC, SFX_SRC, type MusicKey, type SfxKey } from './assets';
-import { MusicToggleButton } from './components/common';
+import { Avatar, MusicToggleButton } from './components/common';
 import { BattleResultModal, RunStatsModal } from './components/battleLog';
 import { CompactRunSidePanel } from './components/bonds';
 import { BattleScreen } from './pages/BattleScreen';
@@ -82,9 +82,15 @@ interface RunState {
   enhanceReady: boolean;
   pendingBossVictory: boolean;
   bossRetrySnapshot: { team: Character[]; battle: BattleState } | null;
+  mapPulseNodeId: string | null;
 }
 
 type HealType = 'small' | 'large';
+
+const SAKURA_PETALS = Array.from({ length: 26 }, (_, index) => index);
+const SCENE_PARTICLES = Array.from({ length: 18 }, (_, index) => index);
+const START_TRANSITION_MS = 1800;
+const BOSS_BLESSING_TRANSITION_MS = 1700;
 
 const HEAL_OPTIONS: Record<HealType, { label: string; cost: number; amount: number; full?: boolean }> = {
   small: { label: '小治疗', cost: 20, amount: 15 },
@@ -134,6 +140,7 @@ function createRun(): RunState {
     enhanceReady: false,
     pendingBossVictory: false,
     bossRetrySnapshot: null,
+    mapPulseNodeId: null,
   };
 }
 
@@ -179,10 +186,48 @@ function maxUpgradeLevel(rarity: Character['rarity'] | CharacterTemplate['rarity
   return 1;
 }
 
+function BossBlessingTransition({ team }: { team: Character[] }) {
+  const visibleTeam = team.slice(0, 4);
+
+  return (
+    <div className="boss-blessing-transition" aria-hidden="true">
+      <div className="boss-blessing-aura" />
+      <div className="boss-blessing-copy">
+        <span>Stage Clear</span>
+        <strong>祝福降临</strong>
+      </div>
+      <div className="boss-blessing-team" style={{ '--blessing-count': Math.max(1, visibleTeam.length) } as CSSProperties}>
+        {visibleTeam.map((member, index) => (
+          <div
+            className={`boss-blessing-member rarity-${member.rarity}`}
+            key={member.id}
+            style={{ '--member-delay': `${index * 120}ms` } as CSSProperties}
+          >
+            <Avatar character={member} label={member.name} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SceneParticles({ variant }: { variant: string }) {
+  return (
+    <div className={`scene-particles particles-${variant}`} aria-hidden="true">
+      {SCENE_PARTICLES.map((particle) => (
+        <span key={particle} className="scene-particle" />
+      ))}
+    </div>
+  );
+}
+
 function App() {
   const [run, setRun] = useState<RunState>(() => createRun());
   const [musicMuted, setMusicMuted] = useState(false);
   const [shopSelectedOffer, setShopSelectedOffer] = useState<CharacterTemplate | null>(null);
+  const [goldPulse, setGoldPulse] = useState(false);
+  const [startTransitioning, setStartTransitioning] = useState(false);
+  const [bossBlessingTransitioning, setBossBlessingTransitioning] = useState(false);
 
   const currentNode = useMemo(
     () => run.map.find((node) => node.id === run.currentNodeId) ?? null,
@@ -200,6 +245,10 @@ function App() {
   const audioUnlockedRef = useRef(false);
   const currentMusicRef = useRef<MusicKey | null>(null);
   const lastVictoryNodeRef = useRef<string | null>(null);
+  const lastSfxRef = useRef<{ key: SfxKey; time: number } | null>(null);
+  const previousGoldRef = useRef(run.gold);
+  const startTransitionTimeoutRef = useRef<number | null>(null);
+  const bossBlessingTransitionTimeoutRef = useRef<number | null>(null);
 
   function getAudio(key: MusicKey | SfxKey, src: string) {
     const existing = audioRefs.current[key];
@@ -248,6 +297,12 @@ function App() {
       return;
     }
 
+    const now = Date.now();
+    if (lastSfxRef.current?.key === key && now - lastSfxRef.current.time < 90) {
+      return;
+    }
+    lastSfxRef.current = { key, time: now };
+
     const audio = getAudio(key, SFX_SRC[key]);
     audio.loop = false;
     audio.volume = 0.74;
@@ -279,6 +334,17 @@ function App() {
   }, [run.screen, run.battle?.type, musicMuted]);
 
   useEffect(() => {
+    return () => {
+      if (startTransitionTimeoutRef.current !== null) {
+        window.clearTimeout(startTransitionTimeoutRef.current);
+      }
+      if (bossBlessingTransitionTimeoutRef.current !== null) {
+        window.clearTimeout(bossBlessingTransitionTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (run.screen !== 'shop') {
       setShopSelectedOffer(null);
       return;
@@ -289,9 +355,30 @@ function App() {
     }
   }, [run.screen, run.shopOffers, shopSelectedOffer]);
 
+  useEffect(() => {
+    if (previousGoldRef.current === run.gold) {
+      return;
+    }
+
+    previousGoldRef.current = run.gold;
+    setGoldPulse(true);
+    const timer = window.setTimeout(() => setGoldPulse(false), 620);
+    return () => window.clearTimeout(timer);
+  }, [run.gold]);
+
   function toggleMusic() {
     unlockAudio();
     setMusicMuted((muted) => !muted);
+  }
+
+  function handleShellPointerDown(event: PointerEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement | null;
+    const button = target?.closest('button');
+    if (!button || button.disabled || button.classList.contains('map-node')) {
+      return;
+    }
+
+    playSfx('next');
   }
 
   useEffect(() => {
@@ -310,17 +397,36 @@ function App() {
 
 
   function resetRun() {
+    if (startTransitionTimeoutRef.current !== null) {
+      window.clearTimeout(startTransitionTimeoutRef.current);
+      startTransitionTimeoutRef.current = null;
+    }
+    if (bossBlessingTransitionTimeoutRef.current !== null) {
+      window.clearTimeout(bossBlessingTransitionTimeoutRef.current);
+      bossBlessingTransitionTimeoutRef.current = null;
+    }
+    setStartTransitioning(false);
+    setBossBlessingTransitioning(false);
     setRun(createRun());
   }
 
   function startGame() {
+    if (startTransitioning) {
+      return;
+    }
+
     playSfx('next');
-    setRun({
-      ...createRun(),
-      screen: 'draft',
-      candidates: createDraftCandidates(),
-      draftSelection: [],
-    });
+    setStartTransitioning(true);
+    startTransitionTimeoutRef.current = window.setTimeout(() => {
+      startTransitionTimeoutRef.current = null;
+      setStartTransitioning(false);
+      setRun({
+        ...createRun(),
+        screen: 'draft',
+        candidates: createDraftCandidates(),
+        draftSelection: [],
+      });
+    }, START_TRANSITION_MS);
   }
 
   function rerollDraft() {
@@ -394,6 +500,7 @@ function App() {
           phase: 'select',
           rewardGold: getRewardGold(battleType, enemies),
           log: [`遭遇${NODE_LABELS[battleType]}。先确认敌人，再选择${slots}名出战伙伴。`],
+          events: [],
           runtime: {},
           stats: {},
         };
@@ -402,6 +509,7 @@ function App() {
           ...previous,
           screen: 'battle',
           currentNodeId: node.id,
+          mapPulseNodeId: null,
           battle,
           result: null,
           restHealUsed: false,
@@ -419,6 +527,7 @@ function App() {
           ...previous,
           screen: 'shop',
           currentNodeId: node.id,
+          mapPulseNodeId: null,
           shopOffers,
           result: null,
           restHealUsed: false,
@@ -431,6 +540,7 @@ function App() {
         ...previous,
         screen: 'rest',
         currentNodeId: node.id,
+        mapPulseNodeId: null,
         result: null,
         restHealUsed: false,
         restReviveUsed: false,
@@ -461,6 +571,7 @@ function App() {
       return {
         ...previous,
         screen: 'blessing',
+        mapPulseNodeId: null,
         team: applyLayerBlessing(team),
         map: buildMap(),
         currentNodeId: null,
@@ -484,6 +595,7 @@ function App() {
       team,
       map: clearedNodeMap,
       currentNodeId: null,
+      mapPulseNodeId: previous.currentNodeId,
       battle: null,
       result: null,
       shopOffers: [],
@@ -504,8 +616,22 @@ function App() {
     setRun((previous) => ({
       ...previous,
       battleStatsOpen: false,
-      enhanceReady: Boolean(previous.pendingEnhance && previous.battle?.phase === 'won'),
+      enhanceReady: false,
     }));
+  }
+
+  function openPendingEnhancement() {
+    setRun((previous) => {
+      if (!previous.pendingEnhance || previous.battle?.phase !== 'won') {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        battleStatsOpen: false,
+        enhanceReady: true,
+      };
+    });
   }
 
   function retryBossBattle() {
@@ -605,7 +731,7 @@ function App() {
           battle,
           result,
           runStats,
-          battleStatsOpen: true,
+          battleStatsOpen: false,
           screen: isFinalBoss ? 'win' : 'battle',
           pendingEnhance: canEnhance
             ? { source: battle.type === 'boss' ? 'boss' : 'elite', cost: battle.type === 'boss' ? 0 : ENHANCE_COST, free: battle.type === 'boss' }
@@ -699,6 +825,35 @@ function App() {
     setRun((previous) => ({ ...previous, pendingBossVictory: false }));
   }
 
+  function enterBossBlessing() {
+    if (bossBlessingTransitioning) {
+      return;
+    }
+
+    playSfx('next');
+    setBossBlessingTransitioning(true);
+    setRun((previous) => ({ ...previous, pendingBossVictory: false }));
+    bossBlessingTransitionTimeoutRef.current = window.setTimeout(() => {
+      bossBlessingTransitionTimeoutRef.current = null;
+      setBossBlessingTransitioning(false);
+      setRun((previous) => advanceAfterCurrentNode(previous));
+    }, BOSS_BLESSING_TRANSITION_MS);
+  }
+
+  function handleBattleReplayDone() {
+    setRun((previous) => {
+      if (previous.screen !== 'battle' || !previous.battle || previous.battleStatsOpen) {
+        return previous;
+      }
+
+      if (previous.battle.phase !== 'won') {
+        return previous;
+      }
+
+      return { ...previous, battleStatsOpen: true };
+    });
+  }
+
   function buyCharacter(template: CharacterTemplate) {
     let didBuy = false;
 
@@ -777,7 +932,13 @@ function App() {
 
   if (run.screen === 'start') {
     return (
-      <div className="app-shell start-shell scene-home">
+      <div className={`app-shell start-shell scene-home ${startTransitioning ? 'is-entering' : ''}`}>
+        <div className="sakura-layer" aria-hidden="true">
+          {SAKURA_PETALS.map((petal) => (
+            <span key={petal} className="sakura-petal" />
+          ))}
+        </div>
+        {startTransitioning && <div className="start-transition-flash" aria-hidden="true" />}
         <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
         <StartScreen onStart={startGame} />
       </div>
@@ -787,6 +948,7 @@ function App() {
   if (run.screen === 'draft') {
     return (
       <div className="app-shell draft-shell scene-draft-shop">
+        <SceneParticles variant="draft-shop" />
         <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
         <DraftScreen
           candidates={run.candidates}
@@ -808,9 +970,25 @@ function App() {
         : run.screen === 'rest' || run.screen === 'blessing'
           ? 'scene-rest-blessing'
           : 'scene-home';
+  const particleVariant = run.screen === 'battle' && run.battle
+    ? run.battle.type === 'elite'
+      ? 'battle-elite'
+      : run.battle.type === 'boss'
+        ? 'battle-boss'
+        : 'battle-normal'
+    : run.screen === 'shop'
+      ? 'draft-shop'
+      : run.screen === 'map'
+        ? 'map'
+        : run.screen === 'rest'
+          ? 'rest'
+          : run.screen === 'blessing'
+            ? 'blessing'
+            : null;
 
   return (
-    <div className={`app-shell game-shell ${sceneClass} ${run.screen === 'map' ? 'map-hud-shell' : ''} ${run.screen === 'battle' ? 'battle-shell' : ''} ${run.screen === 'shop' ? 'shop-shell' : ''}`}>
+    <div className={`app-shell game-shell ${sceneClass} ${run.screen === 'map' ? 'map-hud-shell' : ''} ${run.screen === 'battle' ? 'battle-shell' : ''} ${run.screen === 'shop' ? 'shop-shell' : ''}`} onPointerDownCapture={handleShellPointerDown}>
+      {particleVariant && <SceneParticles variant={particleVariant} />}
       <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
       {run.screen !== 'shop' && (
         <header className="topbar">
@@ -819,7 +997,7 @@ function App() {
             <h1>DreamStage</h1>
           </div>
           <div className="run-stats" aria-label="当前资源">
-            <span>金币 {run.gold}</span>
+            <span className={goldPulse ? 'resource-pulse' : ''}>金币 {run.gold}</span>
             <span>伙伴 {run.team.length}</span>
             <span>可出战 {aliveTeam.length}</span>
           </div>
@@ -830,7 +1008,7 @@ function App() {
         <CompactRunSidePanel team={shopPreviewTeam} onRestart={resetRun} />
 
         <section className="screen-panel">
-          {run.screen === 'map' && <MapScreen nodes={run.map} boss={run.boss} team={run.team} stats={run.runStats} gold={run.gold} musicMuted={musicMuted} onToggleMusic={toggleMusic} onEnter={enterNode} onOpenStats={() => setRun((previous) => ({ ...previous, statsOpen: true }))} eventLog={run.eventLog} onRestart={resetRun} />}
+          {run.screen === 'map' && <MapScreen nodes={run.map} boss={run.boss} team={run.team} stats={run.runStats} gold={run.gold} musicMuted={musicMuted} onToggleMusic={toggleMusic} onEnter={enterNode} onOpenStats={() => setRun((previous) => ({ ...previous, statsOpen: true }))} eventLog={run.eventLog} onRestart={resetRun} pulseNodeId={run.mapPulseNodeId} />}
 
           {run.screen === 'battle' && run.battle && (
             <BattleScreen
@@ -844,7 +1022,10 @@ function App() {
               onEnhance={completeEnhancement}
               onDismissEnhancement={dismissEnhancement}
               onBossBack={dismissBossVictory}
-              onBossBlessing={finishCurrentNode}
+              onBossBlessing={enterBossBlessing}
+              onReplayDone={handleBattleReplayDone}
+              hasPendingEnhance={Boolean(run.pendingEnhance && run.battle.phase === 'won')}
+              onOpenEnhancement={openPendingEnhancement}
             />
           )}
 
@@ -905,13 +1086,16 @@ function App() {
         </section>
       </main>
 
+      {bossBlessingTransitioning && <BossBlessingTransition team={run.team} />}
+
       {run.battleStatsOpen && run.battle && (
         <BattleResultModal
           phase={run.battle.phase}
           stats={run.battle.stats}
           team={run.team}
-          primaryLabel={run.pendingEnhance && run.battle.phase === 'won' ? '进入强化' : '返回'}
+          primaryLabel={run.pendingEnhance && run.battle.phase === 'won' ? '开启强化' : '返回'}
           onClose={closeBattleStatsModal}
+          onPrimary={run.pendingEnhance && run.battle.phase === 'won' ? openPendingEnhancement : undefined}
         />
       )}
       {run.statsOpen && (

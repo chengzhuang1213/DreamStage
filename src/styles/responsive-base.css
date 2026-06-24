@@ -112,6 +112,15 @@
     flex: 1 1 100%;
   }
 
+  .shop-bottom-actions {
+    flex-direction: column;
+  }
+
+  .shop-bottom-actions .shop-buy-button,
+  .shop-bottom-actions .shop-leave-button {
+    width: 100%;
+  }
+
   .shop-recruit-panel {
     padding: 20px 14px 24px;
   }

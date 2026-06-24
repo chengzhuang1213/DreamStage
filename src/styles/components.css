@@ -759,6 +759,48 @@
   opacity: 0.86;
 }
 
+.battle-log-entry.log-ally-action {
+  border: 1px solid rgba(116, 216, 143, 0.36);
+  border-left: 4px solid #73d48b;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(214, 247, 222, 0.96), rgba(235, 252, 239, 0.88));
+  padding: 7px 9px 7px 10px;
+  color: #15251a;
+  font-weight: 900;
+  opacity: 1;
+  box-shadow: inset 0 0 0 1px rgba(236, 255, 241, 0.5);
+}
+
+.battle-log-entry.log-enemy-action {
+  border: 1px solid rgba(255, 128, 143, 0.34);
+  border-left: 4px solid #ff7181;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(255, 225, 229, 0.94), rgba(255, 241, 243, 0.86));
+  padding: 7px 9px 7px 10px;
+  color: #2c171a;
+  opacity: 1;
+  box-shadow: inset 0 0 0 1px rgba(255, 246, 247, 0.46);
+}
+
+.battle-log-number {
+  font-weight: 1000;
+}
+
+.battle-log-number.log-damage-number {
+  color: #ff6f7f;
+  text-shadow: 0 0 10px rgba(255, 92, 116, 0.28);
+}
+
+.battle-log-number.log-shield-number {
+  color: #72b7ff;
+  text-shadow: 0 0 10px rgba(114, 183, 255, 0.26);
+}
+
+.battle-log-number.log-heal-number {
+  color: #72e39b;
+  text-shadow: 0 0 10px rgba(114, 227, 155, 0.26);
+}
+
 .battle-log-entry.log-major {
   font-weight: 900;
   opacity: 1;

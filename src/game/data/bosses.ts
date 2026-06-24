@@ -100,7 +100,8 @@ export const BOSS_TEMPLATES: BossTemplate[] = [
       name: '霞霞最可爱！',
       description: '冷却1回合。本次攻击额外造成50%伤害。',
     },
-  },  {
+  },
+  {
     id: 'boss_chisato',
     name: '岚千砂都',
     group: 'silver',

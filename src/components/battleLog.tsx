@@ -62,7 +62,21 @@ export function DamageMeter({ stats, team, title }: { stats: BattleStats; team: 
   );
 }
 
-export function BattleResultModal({ phase, stats, team, primaryLabel = '返回', onClose }: { phase: BattleState['phase']; stats: BattleStats; team: Character[]; primaryLabel?: string; onClose: () => void }) {
+export function BattleResultModal({
+  phase,
+  stats,
+  team,
+  primaryLabel = '返回',
+  onClose,
+  onPrimary,
+}: {
+  phase: BattleState['phase'];
+  stats: BattleStats;
+  team: Character[];
+  primaryLabel?: string;
+  onClose: () => void;
+  onPrimary?: () => void;
+}) {
   const [showStats, setShowStats] = useState(false);
   const isLost = phase === 'lost';
 
@@ -77,10 +91,15 @@ export function BattleResultModal({ phase, stats, team, primaryLabel = '返回',
         </p>
         {showStats && <DamageMeter stats={stats} team={team} title="伤害统计" />}
         <div className="battle-result-modal-actions">
+          {onPrimary && (
+            <button className="secondary-button" onClick={onClose} type="button">
+              返回战斗
+            </button>
+          )}
           <button className="secondary-button" onClick={() => setShowStats((visible) => !visible)} type="button">
             {showStats ? '收起伤害统计' : '查看伤害统计'}
           </button>
-          <button className="primary-button" onClick={onClose} type="button">
+          <button className="primary-button" onClick={onPrimary ?? onClose} type="button">
             {primaryLabel}
           </button>
         </div>
@@ -164,6 +183,46 @@ interface ReadableBattleLogEntry {
   round: number | null;
 }
 
+function normalizeLogActorName(name: string) {
+  return name.replace(/^对手\s*/, '').replace(/^敌方/, '').replace(/^Boss\s*/, '').replace(/^精英\s*/, '').trim();
+}
+
+function getLogActorName(text: string) {
+  const attackMatch = text.match(/^(.+?) -> /);
+  if (attackMatch) {
+    return attackMatch[1];
+  }
+
+  const comboMatch = text.match(new RegExp(`^(.+?) ${LOG_WORDS.combo} `));
+  if (comboMatch) {
+    return comboMatch[1];
+  }
+
+  const skillMatch = text.match(/^(.+?)(?:发动|触发|恢复|获得)/);
+  return skillMatch?.[1] ?? null;
+}
+
+function isAllyActionEntry(entry: ReadableBattleLogEntry, team?: Character[]) {
+  if (entry.level !== 'action' || !team || team.length === 0) {
+    return false;
+  }
+
+  const actorName = getLogActorName(entry.text);
+  if (!actorName) {
+    return false;
+  }
+
+  const normalizedActor = normalizeLogActorName(actorName);
+  return team.some((member) => {
+    const normalizedMember = normalizeLogActorName(member.name);
+    return normalizedActor === normalizedMember || normalizedActor.includes(normalizedMember) || normalizedMember.includes(normalizedActor);
+  });
+}
+
+function isEnemyActionEntry(entry: ReadableBattleLogEntry, team?: Character[]) {
+  return entry.level === 'action' && Boolean(getLogActorName(entry.text)) && !isAllyActionEntry(entry, team);
+}
+
 function shortenBattleLogEntry(entry: string) {
   const attackMatch = entry.match(new RegExp(`^(.+?)${LOG_WORDS.attack}(.+?)\uff0c\u9020\u6210(\\d+)${LOG_WORDS.damage}\uff0c.+?${LOG_WORDS.hpLeft}(\\d+)HP\u3002$`));
   if (attackMatch) {
@@ -245,6 +304,61 @@ function mergeConsecutiveAttacks(entries: ReadableBattleLogEntry[]) {
   return merged;
 }
 
+function renderBattleLogText(text: string) {
+  const comboMatch = text.match(new RegExp(`^(.+? ${LOG_WORDS.combo} .+?: \\d+${LOG_WORDS.hits}\uff0c${LOG_WORDS.total})(\\d+)(${LOG_WORDS.damage}${LOG_WORDS.hpLeft}\\d+HP)$`));
+  if (comboMatch) {
+    return (
+      <>
+        {comboMatch[1]}
+        <b className="battle-log-number log-damage-number">{comboMatch[2]}</b>
+        {comboMatch[3]}
+      </>
+    );
+  }
+
+  const attackMatch = text.match(new RegExp(`^(.+?: )(\\d+)(${LOG_WORDS.damage}${LOG_WORDS.hpLeft}\\d+HP)$`));
+  if (attackMatch) {
+    return (
+      <>
+        {attackMatch[1]}
+        <b className="battle-log-number log-damage-number">{attackMatch[2]}</b>
+        {attackMatch[3]}
+      </>
+    );
+  }
+
+  if (text.includes(LOG_WORDS.shield)) {
+    return renderTypedNumber(text, 'log-shield-number');
+  }
+
+  if (text.includes(LOG_WORDS.heal)) {
+    return renderTypedNumber(text, 'log-heal-number');
+  }
+
+  if (text.includes(LOG_WORDS.poisonDamage) || text.includes(LOG_WORDS.damage)) {
+    return renderTypedNumber(text, 'log-damage-number');
+  }
+
+  return text;
+}
+
+function renderTypedNumber(text: string, className: string) {
+  const numberMatch = text.match(/\d+/);
+  if (!numberMatch || numberMatch.index === undefined) {
+    return text;
+  }
+
+  const start = numberMatch.index;
+  const end = start + numberMatch[0].length;
+  return (
+    <>
+      {text.slice(0, start)}
+      <b className={`battle-log-number ${className}`}>{numberMatch[0]}</b>
+      {text.slice(end)}
+    </>
+  );
+}
+
 export function BattleLogSummary({ stats, team }: { stats?: BattleStats; team?: Character[] }) {
   if (!stats || !team || team.length === 0) {
     return null;
@@ -272,12 +386,12 @@ export function BattleLogSummary({ stats, team }: { stats?: BattleStats; team?: 
   );
 }
 
-export function BattleLog({ entries, stats, team, extraAction }: { entries: string[]; stats?: BattleStats; team?: Character[]; extraAction?: { label: string; onClick: () => void } }) {
+export function BattleLog({ entries, stats, team, extraAction, showDamageButton = true }: { entries: string[]; stats?: BattleStats; team?: Character[]; extraAction?: { label: string; onClick: () => void }; showDamageButton?: boolean }) {
   const [showDetails, setShowDetails] = useState(false);
   const [showDamage, setShowDamage] = useState(false);
   const readableEntries = mergeConsecutiveAttacks(buildReadableBattleLog(entries));
   const visibleEntries = showDetails ? readableEntries : readableEntries.filter((entry) => entry.level !== 'detail');
-  const canShowDamage = Boolean(stats && team && team.length > 0);
+  const canShowDamage = showDamageButton && Boolean(stats && team && team.length > 0);
 
   return (
     <div className="battle-log" aria-live="polite">
@@ -307,8 +421,8 @@ export function BattleLog({ entries, stats, team, extraAction }: { entries: stri
       <BattleLogSummary stats={stats} team={team} />
       <ol>
         {visibleEntries.map((entry) => (
-          <li className={`battle-log-entry log-${entry.level}`} key={entry.id}>
-            <span>{entry.text}</span>
+          <li className={`battle-log-entry log-${entry.level} ${isAllyActionEntry(entry, team) ? 'log-ally-action' : ''} ${isEnemyActionEntry(entry, team) ? 'log-enemy-action' : ''}`.trim()} key={entry.id}>
+            <span>{renderBattleLogText(entry.text)}</span>
           </li>
         ))}
       </ol>

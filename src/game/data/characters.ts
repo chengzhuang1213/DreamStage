@@ -161,7 +161,8 @@ export const CHARACTER_POOL: CharacterTemplate[] = [
       name: '纪律执行',
       description: '全体友方攻击力+2，随后绘里进行一次普通攻击。Lv3提升为+4，Lv4改为指定一名友方立即普通攻击。',
     },
-  },  {
+  },
+  {
     id: 'mari',
     name: '小原鞠莉',
     group: 'president',

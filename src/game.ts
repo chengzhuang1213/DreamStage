@@ -1,4 +1,4 @@
-import type { GroupId, IdolRarity, RoleId, BossTier, EliteTier, EnemyPoolId, UpgradeLevel, SecondaryBondId, PassiveId, SkillId, Ability, CharacterTemplate, Character, NodeType, BattleType, MapNode, RuntimeFlags, RuntimeState, BattlePhase, CharacterBattleStats, BattleStats, BattleState, BondGroup, ActiveBond, BossTemplate, EliteTemplate, EnemyTemplate, SecondaryBond, ActiveSecondaryBond } from './game/types';
+import type { GroupId, IdolRarity, RoleId, BossTier, EliteTier, EnemyPoolId, UpgradeLevel, SecondaryBondId, PassiveId, SkillId, Ability, CharacterTemplate, Character, NodeType, BattleType, MapNode, RuntimeFlags, RuntimeState, BattlePhase, CharacterBattleStats, BattleStats, BattleUnitSnapshot, BattleEventKind, BattleEvent, BattleState, BondGroup, ActiveBond, BossTemplate, EliteTemplate, EnemyTemplate, SecondaryBond, ActiveSecondaryBond } from './game/types';
 import { BOND_GROUPS, SECONDARY_BONDS } from './game/data/bonds';
 import { BOSS_TEMPLATES } from './game/data/bosses';
 import { CHARACTER_POOL } from './game/data/characters';
@@ -7,7 +7,7 @@ import { ELITE_TEMPLATES } from './game/data/elites';
 import { GROUP_LABELS, NODE_LABELS, RARITY_LABELS, ROLE_DAMAGE_MULTIPLIERS, ROLE_LABELS, REWARD_GOLD } from './game/data/labels';
 import { hasSecondaryBond } from './game/bonds';
 
-export type { GroupId, IdolRarity, RoleId, BossTier, EliteTier, EnemyPoolId, UpgradeLevel, SecondaryBondId, PassiveId, SkillId, Ability, CharacterTemplate, Character, NodeType, BattleType, MapNode, RuntimeFlags, RuntimeState, BattlePhase, CharacterBattleStats, BattleStats, BattleState, BondGroup, ActiveBond, BossTemplate, EliteTemplate, EnemyTemplate, SecondaryBond, ActiveSecondaryBond } from './game/types';
+export type { GroupId, IdolRarity, RoleId, BossTier, EliteTier, EnemyPoolId, UpgradeLevel, SecondaryBondId, PassiveId, SkillId, Ability, CharacterTemplate, Character, NodeType, BattleType, MapNode, RuntimeFlags, RuntimeState, BattlePhase, CharacterBattleStats, BattleStats, BattleUnitSnapshot, BattleEventKind, BattleEvent, BattleState, BondGroup, ActiveBond, BossTemplate, EliteTemplate, EnemyTemplate, SecondaryBond, ActiveSecondaryBond } from './game/types';
 export { BOND_GROUPS, SECONDARY_BONDS } from './game/data/bonds';
 export { BOSS_TEMPLATES } from './game/data/bosses';
 export { CHARACTER_POOL } from './game/data/characters';

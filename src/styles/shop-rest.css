@@ -12,9 +12,17 @@
   z-index: 1;
 }
 
+.shop-shell .screen-panel:has(.modal-backdrop) {
+  z-index: 500;
+}
+
 .shop-shell .dock-popover {
   z-index: 420;
   min-width: 280px;
+}
+
+.shop-screen > .modal-backdrop {
+  z-index: 500;
 }
 
 .shop-header {
@@ -73,7 +81,7 @@
 }
 
 .shop-buy-button {
-  min-height: 50px;
+  min-height: 62px;
   border-radius: 12px;
   background: linear-gradient(135deg, #7740c9, #432476);
   box-shadow: 0 12px 26px rgba(62, 32, 111, 0.22);
@@ -287,6 +295,20 @@
   --shop-name-color: #bf6c16;
   --shop-price-top: #d99a2d;
   --shop-price-bottom: #a45a10;
+}
+
+.shop-bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.shop-bottom-actions .shop-buy-button,
+.shop-bottom-actions .shop-leave-button {
+  width: min(270px, 100%);
+  min-height: 62px;
+  font-size: 1.28rem;
 }
 
 .shop-leave-button {

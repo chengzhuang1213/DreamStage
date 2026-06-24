@@ -1,5 +1,6 @@
 ﻿import type { BattlePhase, BattleState, BattleStats, Character, CharacterBattleStats, RuntimeFlags, RuntimeState, BattleType, UpgradeLevel } from './types';
 import { hasBond, hasSecondaryBond } from './bonds';
+import type { BattleEvent, BattleEventKind } from './types';
 import { ROLE_DAMAGE_MULTIPLIERS, ROLE_LABELS } from './data/labels';
 
 export function getBattleSlots(type: BattleType, aliveCount: number): number {
@@ -63,6 +64,33 @@ function getBattleStat(stats: BattleStats, character: Character): CharacterBattl
   return stats[character.id];
 }
 
+type BattleEventInput = Omit<BattleEvent, 'id' | 'units'>;
+type BattleEventEmitter = (event: BattleEventInput) => void;
+
+function createBattleEventEmitter(events: BattleEvent[], team: Character[], enemies: Character[]): BattleEventEmitter {
+  return (event) => {
+    events.push({
+      id: `battle-event-${events.length + 1}`,
+      ...event,
+      units: [...team, ...enemies].map((unit) => ({
+        id: unit.id,
+        hp: unit.hp,
+        maxHp: unit.maxHp,
+        shield: unit.shield,
+        injured: unit.injured,
+      })),
+    });
+  };
+}
+
+function emitBattleEvent(emit: BattleEventEmitter | undefined, event: BattleEventInput) {
+  emit?.(event);
+}
+
+function emitLogEvent(emit: BattleEventEmitter | undefined, kind: BattleEventKind, text: string) {
+  emitBattleEvent(emit, { kind, text });
+}
+
 function upgradeLevel(character: Character): UpgradeLevel {
   return character.upgradeLevel ?? 1;
 }
@@ -83,16 +111,24 @@ function heal(character: Character, amount: number): number {
   return character.hp - before;
 }
 
-function addShield(character: Character, amount: number, log: string[], reason: string) {
+function addShield(character: Character, amount: number, log: string[], reason: string, emit?: BattleEventEmitter) {
   if (amount <= 0) {
     return;
   }
 
   const finalAmount = character.shieldGainReduced ? Math.ceil(amount * 0.5) : amount;
   character.shield += finalAmount;
-  log.push(
-    `${character.name}${reason}，获得${finalAmount}护盾${character.shieldGainReduced ? "（护盾削弱，获得量减半）" : ""}。`,
-  );
+  const text = `${character.name}${reason}，获得${finalAmount}护盾${character.shieldGainReduced ? "（护盾削弱，获得量减半）" : ""}。`;
+  log.push(text);
+  emitBattleEvent(emit, {
+    kind: 'shield',
+    text,
+    actorId: character.id,
+    targetId: character.id,
+    actorName: character.name,
+    targetName: character.name,
+    amount: finalAmount,
+  });
 }
 
 function applyStatus(
@@ -232,6 +268,7 @@ function processPoison(
   team: Character[],
   runtime: RuntimeState,
   log: string[],
+  emit?: BattleEventEmitter,
 ): boolean {
   if (actor.poison <= 0 || actor.hp <= 0) {
     return actor.hp <= 0;
@@ -239,7 +276,16 @@ function processPoison(
 
   const damage = actor.poison;
   actor.hp = Math.max(0, actor.hp - damage);
-  log.push(`${actor.name}受到${damage}点毒伤害。`);
+  const text = `${actor.name}受到${damage}点毒伤害。`;
+  log.push(text);
+  emitBattleEvent(emit, {
+    kind: 'damage',
+    text,
+    targetId: actor.id,
+    targetName: actor.name,
+    amount: damage,
+    hpLeft: actor.hp,
+  });
   actor.poison = Math.max(0, actor.poison - 1);
   tryBossEncore(actor, runtime, log);
 
@@ -254,13 +300,14 @@ function tryExecute(
   runtime: RuntimeState,
   log: string[],
   stats?: BattleStats,
+  emit?: BattleEventEmitter,
 ): boolean {
   const flags = getFlags(runtime, attacker.id);
   if (attacker.skill.id !== 'kanata_execute' || upgradeLevel(attacker) < 3 || defender.hp <= 0 || (flags.skillCooldown ?? 0) > 0) {
     return false;
   }
 
-  const threshold = upgradeLevel(attacker) >= 5 ? 0.25 : 0.2;
+  const threshold = upgradeLevel(attacker) >= 5 ? 0.3 : 0.2;
   if (defender.hp / defender.maxHp <= threshold) {
     const remainingHp = defender.hp;
     defender.hp = 0;
@@ -268,7 +315,18 @@ function tryExecute(
       getBattleStat(stats, attacker).damageDealt += remainingHp;
     }
     flags.skillCooldown = 1;
-    log.push(`${attacker.name}发动「${attacker.skill.name}」，直接斩杀${defender.name}。`);
+    const text = `${attacker.name}发动「${attacker.skill.name}」，直接斩杀${defender.name}。`;
+    log.push(text);
+    emitBattleEvent(emit, {
+      kind: 'damage',
+      text,
+      actorId: attacker.id,
+      targetId: defender.id,
+      actorName: attacker.name,
+      targetName: defender.name,
+      amount: remainingHp,
+      hpLeft: defender.hp,
+    });
     tryBossEncore(defender, runtime, log);
     return true;
   }
@@ -471,7 +529,7 @@ function calculateDamage(
   }
 
   if (isAllyAttacker && hasBond(team, 'cute', 3)) {
-    criticalChance += 0.05;
+    criticalChance += 0.1;
   }
 
   if (isAllyAttacker && battleFlags(runtime).energeticIdolOnField && flags.openingRound) {
@@ -550,8 +608,9 @@ function resolveAttack(
   runtime: RuntimeState,
   log: string[],
   stats: BattleStats,
+  emit?: BattleEventEmitter,
 ) {
-  if (attacker.skill.id !== 'kanata_execute' && tryExecute(attacker, defender, isAllyAttacker, team, runtime, log, stats)) {
+  if (attacker.skill.id !== 'kanata_execute' && tryExecute(attacker, defender, isAllyAttacker, team, runtime, log, stats, emit)) {
     return;
   }
 
@@ -611,11 +670,23 @@ function resolveAttack(
   const defenderDurabilityBefore = defender.hp + defender.shield;
   applyDamageToShieldAndHp(defender, damage);
   const actualDamage = Math.min(damage, defenderDurabilityBefore);
-  log.push(`${attacker.name}攻击${defender.name}，造成${damage}伤害，${defender.name}剩余${defender.hp}HP。`);
+  const attackText = `${attacker.name}攻击${defender.name}，造成${damage}伤害，${defender.name}剩余${defender.hp}HP。`;
+  log.push(attackText);
+  emitBattleEvent(emit, {
+    kind: 'attack',
+    text: attackText,
+    actorId: attacker.id,
+    targetId: defender.id,
+    actorName: attacker.name,
+    targetName: defender.name,
+    amount: actualDamage,
+    shieldBlocked: Math.min(defenderShieldBefore, actualDamage),
+    hpLeft: defender.hp,
+  });
   if (defenderFlags.fatalGuardShieldPending && defender.hp > 0) {
     const shieldAmount = defenderFlags.fatalGuardShieldPending;
     defenderFlags.fatalGuardShieldPending = undefined;
-    addShield(defender, shieldAmount, log, '触发「命运之子」');
+    addShield(defender, shieldAmount, log, '触发「命运之子」', emit);
   }
 
   const kotoriTrueDamage =
@@ -624,7 +695,18 @@ function resolveAttack(
       : 0;
   if (kotoriTrueDamage > 0) {
     defender.hp = Math.max(0, defender.hp - kotoriTrueDamage);
-    log.push(`${attacker.name}触发Lv4强化，攻击额外造成${kotoriTrueDamage}点真实伤害，${defender.name}剩余${defender.hp}HP。`);
+    const text = `${attacker.name}触发Lv4强化，攻击额外造成${kotoriTrueDamage}点真实伤害，${defender.name}剩余${defender.hp}HP。`;
+    log.push(text);
+    emitBattleEvent(emit, {
+      kind: 'damage',
+      text,
+      actorId: attacker.id,
+      targetId: defender.id,
+      actorName: attacker.name,
+      targetName: defender.name,
+      amount: kotoriTrueDamage,
+      hpLeft: defender.hp,
+    });
     tryBossEncore(defender, runtime, log);
   }
 
@@ -638,9 +720,20 @@ function resolveAttack(
     const dreamRate = Math.random() < (upgradeLevel(attacker) >= 5 ? 0.5 : 0.2) ? 0.2 : 0.1;
     kanataDreamDamage = Math.max(1, Math.floor(defender.hp * dreamRate));
     defender.hp = Math.max(0, defender.hp - kanataDreamDamage);
-    log.push(`${attacker.name}发动《${attacker.skill.name}》，追加目标当前生命${Math.round(dreamRate * 100)}%的伤害，造成${kanataDreamDamage}点，${defender.name}剩余${defender.hp}HP。`);
+    const text = `${attacker.name}发动《${attacker.skill.name}》，追加目标当前生命${Math.round(dreamRate * 100)}%的伤害，造成${kanataDreamDamage}点，${defender.name}剩余${defender.hp}HP。`;
+    log.push(text);
+    emitBattleEvent(emit, {
+      kind: 'damage',
+      text,
+      actorId: attacker.id,
+      targetId: defender.id,
+      actorName: attacker.name,
+      targetName: defender.name,
+      amount: kanataDreamDamage,
+      hpLeft: defender.hp,
+    });
     tryBossEncore(defender, runtime, log);
-    tryExecute(attacker, defender, isAllyAttacker, team, runtime, log, stats);
+    tryExecute(attacker, defender, isAllyAttacker, team, runtime, log, stats, emit);
   }
   const totalActualDamage = actualDamage + kotoriTrueDamage + kanataDreamDamage;
   const shieldBlocked = Math.min(defenderShieldBefore, actualDamage);
@@ -660,7 +753,18 @@ function resolveAttack(
   if (attacker.passive?.id === 'keke_inspiration') {
     const restored = heal(attacker, Math.floor(totalActualDamage * 0.15));
     if (restored > 0) {
-      log.push(`${attacker.name}发动「${attacker.passive.name}」，恢复${restored}HP。`);
+      const text = `${attacker.name}发动「${attacker.passive.name}」，恢复${restored}HP。`;
+      log.push(text);
+      emitBattleEvent(emit, {
+        kind: 'heal',
+        text,
+        actorId: attacker.id,
+        targetId: attacker.id,
+        actorName: attacker.name,
+        targetName: attacker.name,
+        amount: restored,
+        hpLeft: attacker.hp,
+      });
     }
   }
 
@@ -671,7 +775,18 @@ function resolveAttack(
   if (actualDamage > 0 && attacker.passive?.id === 'enemy_karin_drain') {
     const restored = heal(attacker, 2);
     if (restored > 0) {
-      log.push(`${attacker.name}发动「${attacker.passive.name}」，恢复${restored}HP。`);
+      const text = `${attacker.name}发动「${attacker.passive.name}」，恢复${restored}HP。`;
+      log.push(text);
+      emitBattleEvent(emit, {
+        kind: 'heal',
+        text,
+        actorId: attacker.id,
+        targetId: attacker.id,
+        actorName: attacker.name,
+        targetName: attacker.name,
+        amount: restored,
+        hpLeft: attacker.hp,
+      });
     }
   }
   tryBossEncore(defender, runtime, log);
@@ -689,7 +804,18 @@ function resolveAttack(
   ) {
     defenderFlags.encoreUsed = true;
     const restored = heal(defender, 30);
-    log.push(`${defender.name}发动「${defender.passive.name}」，生命首次低于20%，恢复${restored}HP。`);
+    const text = `${defender.name}发动「${defender.passive.name}」，生命首次低于20%，恢复${restored}HP。`;
+    log.push(text);
+    emitBattleEvent(emit, {
+      kind: 'heal',
+      text,
+      actorId: defender.id,
+      targetId: defender.id,
+      actorName: defender.name,
+      targetName: defender.name,
+      amount: restored,
+      hpLeft: defender.hp,
+    });
   }
 
   if (defender.hp > 0 && defender.passive?.id === 'elite_emma_warm_power') {
@@ -703,10 +829,10 @@ function resolveAttack(
     applyVulnerable(defender, log, multiplier);
   }
 
-  tryExecute(attacker, defender, isAllyAttacker, team, runtime, log, stats);
+  tryExecute(attacker, defender, isAllyAttacker, team, runtime, log, stats, emit);
 }
 
-function applyLittleDevilTurnStart(attacker: Character, runtime: RuntimeState, log: string[]) {
+function applyLittleDevilTurnStart(attacker: Character, runtime: RuntimeState, log: string[], emit?: BattleEventEmitter) {
   if (!battleFlags(runtime).littleDevilOnField || (attacker.templateId !== 'nico' && attacker.templateId !== 'yoshiko')) {
     return;
   }
@@ -717,7 +843,7 @@ function applyLittleDevilTurnStart(attacker: Character, runtime: RuntimeState, l
     return;
   }
 
-  addShield(attacker, 2, log, '触发「小恶魔」');
+  addShield(attacker, 2, log, '触发「小恶魔」', emit);
 }
 
 function applyNozoeliTurnStart(attacker: Character, runtime: RuntimeState, log: string[]) {
@@ -750,6 +876,7 @@ function castNozomiTarot(
   runtime: RuntimeState,
   log: string[],
   stats: BattleStats,
+  emit?: BattleEventEmitter,
 ) {
   const flags = getFlags(runtime, attacker.id);
   const card = drawNozomiTarotCard(flags);
@@ -758,7 +885,7 @@ function castNozomiTarot(
     const multiplier = upgradeLevel(attacker) >= 2 ? 2.5 : 1.75;
     flags.nextAttackMultiplier = multiplier;
     log.push(`${attacker.name}发动《${attacker.skill.name}》，抽到「倒吊人」，本次技能伤害×${multiplier}。`);
-    resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats);
+    resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
     return;
   }
 
@@ -767,9 +894,9 @@ function castNozomiTarot(
     const shieldAmount = upgradeLevel(attacker) >= 3 ? 12 : 8;
     flags.nextAttackMultiplier = multiplier;
     log.push(`${attacker.name}发动《${attacker.skill.name}》，抽到「命运之轮」，造成${multiplier}倍伤害并获得${shieldAmount}护盾。`);
-    resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats);
+    resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
     if (attacker.hp > 0) {
-      addShield(attacker, shieldAmount, log, '抽到「命运之轮」');
+      addShield(attacker, shieldAmount, log, '抽到「命运之轮」', emit);
     }
     return;
   }
@@ -777,9 +904,9 @@ function castNozomiTarot(
   flags.tarotMagicianUsedThisTurn = true;
   flags.tarotMagicianTriggeredLastSkill = true;
   log.push(`${attacker.name}发动《${attacker.skill.name}》，抽到「魔术师」，本次造成1倍伤害并立即再次抽牌。`);
-  resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats);
+  resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
   if (defender.hp > 0 && attacker.hp > 0) {
-    castNozomiTarot(attacker, defender, isAllyAttacker, team, runtime, log, stats);
+    castNozomiTarot(attacker, defender, isAllyAttacker, team, runtime, log, stats, emit);
   }
 }
 
@@ -791,8 +918,9 @@ function takeTurn(
   runtime: RuntimeState,
   log: string[],
   stats: BattleStats,
+  emit?: BattleEventEmitter,
 ) {
-  if (processPoison(attacker, isAllyAttacker, team, runtime, log)) {
+  if (processPoison(attacker, isAllyAttacker, team, runtime, log, emit)) {
     return;
   }
 
@@ -802,11 +930,11 @@ function takeTurn(
   const chargeCooldown = flags.kekeChargeCooldown ?? 0;
   const skillCooldown = flags.skillCooldown ?? 0;
 
-  applyLittleDevilTurnStart(attacker, runtime, log);
+  applyLittleDevilTurnStart(attacker, runtime, log, emit);
   applyNozoeliTurnStart(attacker, runtime, log);
 
   if (attacker.passive?.id === 'nozomi_turn_shield') {
-    addShield(attacker, upgradeLevel(attacker) >= 3 ? 5 : 3, log, `发动「${attacker.passive.name}」`);
+    addShield(attacker, upgradeLevel(attacker) >= 3 ? 5 : 3, log, `发动「${attacker.passive.name}」`, emit);
   }
 
   if (attacker.passive?.id === 'mari_shiny') {
@@ -821,7 +949,7 @@ function takeTurn(
       const shieldAmount = Math.floor(spirit * shieldPerStack);
       const attackBonus = Math.floor(spirit * (upgradeLevel(attacker) >= 3 ? 1 : 0.5));
       if (shieldAmount > 0) {
-        addShield(attacker, shieldAmount, log, `发动「${attacker.passive.name}」`);
+        addShield(attacker, shieldAmount, log, `发动「${attacker.passive.name}」`, emit);
       }
       if (attackBonus > 0) {
         attacker.battleAttackBonus += attackBonus;
@@ -845,7 +973,18 @@ function takeTurn(
     flags.turnsTaken = (flags.turnsTaken ?? 0) + 1;
     if (flags.turnsTaken % 2 === 0) {
       const restored = heal(attacker, 15);
-      log.push(`${attacker.name}发动「${attacker.passive.name}」，恢复${restored}HP。`);
+      const text = `${attacker.name}发动「${attacker.passive.name}」，恢复${restored}HP。`;
+      log.push(text);
+      emitBattleEvent(emit, {
+        kind: 'heal',
+        text,
+        actorId: attacker.id,
+        targetId: attacker.id,
+        actorName: attacker.name,
+        targetName: attacker.name,
+        amount: restored,
+        hpLeft: attacker.hp,
+      });
     }
   }
 
@@ -875,7 +1014,18 @@ function takeTurn(
     if (upgradeLevel(attacker) < 4) {
       flags.skillCooldown = 1;
     }
-    log.push(`${attacker.name}发动《${attacker.skill.name}》，${upgradeLevel(attacker) >= 2 ? '全体友方' : targets[0].name}恢复${amount}HP，后续治疗量+3。`);
+    const text = `${attacker.name}发动《${attacker.skill.name}》，${upgradeLevel(attacker) >= 2 ? '全体友方' : targets[0].name}恢复${amount}HP，后续治疗量+3。`;
+    log.push(text);
+    emitBattleEvent(emit, {
+      kind: 'heal',
+      text,
+      actorId: attacker.id,
+      targetId: upgradeLevel(attacker) >= 2 ? undefined : targets[0]?.id,
+      actorName: attacker.name,
+      targetName: upgradeLevel(attacker) >= 2 ? '全体友方' : targets[0]?.name,
+      amount,
+      hpLeft: attacker.hp,
+    });
     return;
   }
 
@@ -887,7 +1037,18 @@ function takeTurn(
 
   if (attacker.passive?.id === 'boss_chika_regen') {
     const restored = heal(attacker, 5);
-    log.push(`${attacker.name}发动「${attacker.passive.name}」，恢复${restored}HP。`);
+    const text = `${attacker.name}发动「${attacker.passive.name}」，恢复${restored}HP。`;
+    log.push(text);
+    emitBattleEvent(emit, {
+      kind: 'heal',
+      text,
+      actorId: attacker.id,
+      targetId: attacker.id,
+      actorName: attacker.name,
+      targetName: attacker.name,
+      amount: restored,
+      hpLeft: attacker.hp,
+    });
   }
 
   if (attacker.skill.id === 'boss_chisato_training' && skillCooldown <= 0) {
@@ -902,9 +1063,20 @@ function takeTurn(
   ) {
     if (attacker.skill.id === 'boss_chika_together') {
       const restored = heal(attacker, 10);
-      log.push(`${attacker.name}发动「${attacker.skill.name}」，恢复${restored}HP。`);
+      const text = `${attacker.name}发动「${attacker.skill.name}」，恢复${restored}HP。`;
+      log.push(text);
+      emitBattleEvent(emit, {
+        kind: 'heal',
+        text,
+        actorId: attacker.id,
+        targetId: attacker.id,
+        actorName: attacker.name,
+        targetName: attacker.name,
+        amount: restored,
+        hpLeft: attacker.hp,
+      });
     } else {
-      addShield(attacker, 25, log, `发动「${attacker.skill.name}」`);
+      addShield(attacker, 25, log, `发动「${attacker.skill.name}」`, emit);
     }
     flags.skillCooldown = 1;
     return;
@@ -916,14 +1088,14 @@ function takeTurn(
       .sort((left, right) => left.hp / left.maxHp - right.hp / right.maxHp)[0];
     if (shieldTarget) {
       const shieldAmount = upgradeLevel(attacker) >= 2 ? 8 : 5;
-      addShield(shieldTarget, shieldAmount, log, `发动「${attacker.skill.name}」`);
+      addShield(shieldTarget, shieldAmount, log, `发动「${attacker.skill.name}」`, emit);
       flags.skillCooldown = 1;
       return;
     }
   }
 
   if (attacker.skill.id === 'nozomi_tarot' && skillCooldown <= 0 && defender.hp > 0) {
-    castNozomiTarot(attacker, defender, isAllyAttacker, team, runtime, log, stats);
+    castNozomiTarot(attacker, defender, isAllyAttacker, team, runtime, log, stats, emit);
     flags.skillCooldown = upgradeLevel(attacker) >= 4 && flags.tarotMagicianTriggeredLastSkill ? 0 : 1;
     return;
   }
@@ -941,13 +1113,13 @@ function takeTurn(
         .sort((left, right) => effectiveAttack(right) - effectiveAttack(left))[0];
       if (commandTarget && defender.hp > 0) {
         log.push(`${attacker.name}指定${commandTarget.name}立即进行一次普通攻击。`);
-        resolveAttack(commandTarget, defender, true, false, team, runtime, log, stats);
+        resolveAttack(commandTarget, defender, true, false, team, runtime, log, stats, emit);
       }
       return;
     }
     if (defender.hp > 0) {
       log.push(`${attacker.name}随后进行一次普通攻击。`);
-      resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats);
+      resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
     }
     return;
   }
@@ -955,14 +1127,14 @@ function takeTurn(
   if (attacker.skill.id === 'mari_shield') {
     addFightingSpirit(attacker, runtime, log);
     flags.mariSkillActive = true;
-    resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats);
+    resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
     flags.mariSkillActive = false;
     return;
   }
 
   if (attacker.skill.id === 'nico_triple' && (skillCooldown <= 0 || upgradeLevel(attacker) >= 4)) {
     if (upgradeLevel(attacker) >= 4 && attacker.hp / attacker.maxHp <= 0.2) {
-      resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats);
+      resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
       return;
     }
 
@@ -985,7 +1157,7 @@ function takeTurn(
     log.push(`${attacker.name}发动《${attacker.skill.name}》${hpLoss > 0 ? `，失去${hpLoss}HP` : ''}，连续攻击${hits}次。`);
     flags.nicoComboActive = true;
     for (let hit = 0; hit < hits && defender.hp > 0; hit += 1) {
-      resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats);
+      resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
     }
     flags.nicoComboActive = false;
     return;
@@ -1001,7 +1173,7 @@ function takeTurn(
     return;
   }
 
-  resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats);
+  resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
 
   if (attacker.skill.id === 'keke_charge' && chargeCooldown > 0) {
     flags.kekeChargeCooldown = Math.max(0, chargeCooldown - 1);
@@ -1017,7 +1189,7 @@ function takeTurn(
     attacker.passive?.id === 'boss_chisato_double'
   ) {
     log.push(`${attacker.name}发动「${attacker.passive.name}」，追加第二次攻击。`);
-    resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats);
+    resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
   }
 
   if (
@@ -1027,7 +1199,7 @@ function takeTurn(
     Math.random() < (upgradeLevel(attacker) >= 3 ? 0.75 : 0.5)
   ) {
     log.push(`${attacker.name}发动「${attacker.passive.name}」，追加一次攻击。`);
-    resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats);
+    resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
   }
   if (attacker.hp > 0 && attacker.passive?.id === 'boss_kasumi_stage_growth') {
     const stacks = Math.min(5, flags.kasumiStageStacks ?? 0);
@@ -1054,17 +1226,22 @@ function runGroupBattle(
   runtime: RuntimeState,
   log: string[],
   stats: BattleStats,
+  emit?: BattleEventEmitter,
 ) {
   setActiveSecondaryBondFlags(allies, runtime);
   allies.forEach((ally) => prepareCombatant(ally, enemy, true, team, runtime, log));
   prepareCombatant(enemy, allies[0], false, team, runtime, log);
 
-  log.push(`开始团队战斗：${allies.map((ally) => ally.name).join("、")} VS ${enemy.name}。`);
+  const startText = `开始团队战斗：${allies.map((ally) => ally.name).join("、")} VS ${enemy.name}。`;
+  log.push(startText);
+  emitLogEvent(emit, 'start', startText);
   let rounds = 0;
 
   while (allies.some((ally) => ally.hp > 0) && enemy.hp > 0 && rounds < 80) {
     rounds += 1;
-    log.push(`第${rounds}回合。`);
+    const roundText = `第${rounds}回合。`;
+    log.push(roundText);
+    emitLogEvent(emit, 'round', roundText);
     const turnOrder = [
       ...allies
         .filter((ally) => ally.hp > 0)
@@ -1098,7 +1275,7 @@ function runGroupBattle(
       if (actor.isAlly) {
         if (actor.character.hp > 0) {
           getFlags(runtime, actor.character.id).openingRound = rounds === 1;
-          takeTurn(actor.character, enemy, true, team, runtime, log, stats);
+          takeTurn(actor.character, enemy, true, team, runtime, log, stats, emit);
         }
         continue;
       }
@@ -1110,20 +1287,22 @@ function runGroupBattle(
       const firstTarget = livingAllies[Math.floor(Math.random() * livingAllies.length)];
       if (firstTarget) {
         getFlags(runtime, enemy.id).openingRound = rounds === 1;
-        takeTurn(enemy, firstTarget, false, team, runtime, log, stats);
+        takeTurn(enemy, firstTarget, false, team, runtime, log, stats, emit);
       }
 
       for (const extraTarget of livingAllies) {
         if (enemy.hp <= 0 || extraTarget.hp <= 0 || extraTarget.id === firstTarget?.id) {
           continue;
         }
-        resolveAttack(enemy, extraTarget, false, true, team, runtime, log, stats);
+        resolveAttack(enemy, extraTarget, false, true, team, runtime, log, stats, emit);
       }
     }
   }
 
   if (rounds >= 80) {
-    log.push('战斗回合过长，系统强制结束本段团队战斗。');
+    const text = '战斗回合过长，系统强制结束本段团队战斗。';
+    log.push(text);
+    emitLogEvent(emit, 'major', text);
   }
 }
 
@@ -1143,7 +1322,7 @@ function applyVictoryPassives(
   return rewardGold;
 }
 
-function applySecondaryVictoryEffects(team: Character[], log: string[]): number {
+function applySecondaryVictoryEffects(team: Character[], log: string[], emit?: BattleEventEmitter): number {
   let rewardGold = 0;
   const aliveTeam = team.filter((member) => !member.injured && member.hp > 0);
 
@@ -1151,7 +1330,18 @@ function applySecondaryVictoryEffects(team: Character[], log: string[]): number 
     aliveTeam.forEach((member) => {
       const restored = heal(member, Math.ceil(member.maxHp * 0.15));
       if (restored > 0) {
-        log.push(`${member.name}触发「天使」，战后恢复${restored}HP。`);
+        const text = `${member.name}触发「天使」，战后恢复${restored}HP。`;
+        log.push(text);
+        emitBattleEvent(emit, {
+          kind: 'heal',
+          text,
+          actorId: member.id,
+          targetId: member.id,
+          actorName: member.name,
+          targetName: member.name,
+          amount: restored,
+          hpLeft: member.hp,
+        });
       }
     });
   }
@@ -1164,7 +1354,18 @@ function applySecondaryVictoryEffects(team: Character[], log: string[]): number 
       log.push('触发「幸运星」，额外获得25金币。');
     } else if (roll === 1 && target) {
       const restored = heal(target, 30);
-      log.push(`触发「幸运星」，${target.name}恢复${restored}HP。`);
+      const text = `触发「幸运星」，${target.name}恢复${restored}HP。`;
+      log.push(text);
+      emitBattleEvent(emit, {
+        kind: 'heal',
+        text,
+        actorId: target.id,
+        targetId: target.id,
+        actorName: target.name,
+        targetName: target.name,
+        amount: restored,
+        hpLeft: target.hp,
+      });
     } else if (target) {
       if (Math.random() < 0.5) {
         target.attack += 1;
@@ -1191,39 +1392,58 @@ export function resolveBattleGroup(
     Object.entries(battleInput.stats ?? {}).map(([id, value]) => [id, { ...value }]),
   );
   const log = [...battleInput.log];
+  const events: BattleEvent[] = [...(battleInput.events ?? [])];
+  const emit = createBattleEventEmitter(events, team, enemies);
   const uniqueIds = [...new Set(allyIds)];
   const allies = uniqueIds
     .map((allyId) => team.find((member) => member.id === allyId))
     .filter((member): member is Character => Boolean(member && !member.injured && member.hp > 0));
 
   if (allies.length !== battleInput.slots) {
-    log.push(`需要选择${battleInput.slots}名可出战角色。`);
+    const text = `需要选择${battleInput.slots}名可出战角色。`;
+    log.push(text);
+    emitLogEvent(emit, 'major', text);
     return {
       team,
       battle: {
         ...battleInput,
         enemies,
         log,
+        events,
         runtime,
         stats,
       },
     };
   }
 
-  log.push(`${allies.map((ally) => ally.name).join("、")}同时上场。`);
+  const enterText = `${allies.map((ally) => ally.name).join("、")}同时上场。`;
+  log.push(enterText);
+  emitBattleEvent(emit, {
+    kind: 'start',
+    text: enterText,
+    targetName: allies.map((ally) => ally.name).join('、'),
+  });
   let activeEnemyIndex = battleInput.activeEnemyIndex;
   let winningAlly: Character | null = null;
 
   while (allies.some((ally) => ally.hp > 0) && activeEnemyIndex < enemies.length) {
     const enemy = enemies[activeEnemyIndex];
     allies.forEach((ally) => getBattleStat(stats, ally));
-    runGroupBattle(allies, enemy, team, runtime, log, stats);
+    runGroupBattle(allies, enemy, team, runtime, log, stats, emit);
 
     if (enemy.hp <= 0) {
       enemy.hp = 0;
       enemy.injured = true;
       winningAlly = allies.find((ally) => ally.hp > 0) ?? allies[0];
-      log.push(`${enemy.name}被击败。`);
+      const text = `${enemy.name}被击败。`;
+      log.push(text);
+      emitBattleEvent(emit, {
+        kind: 'defeat',
+        text,
+        targetId: enemy.id,
+        targetName: enemy.name,
+        hpLeft: enemy.hp,
+      });
       activeEnemyIndex += 1;
     } else {
       break;
@@ -1234,7 +1454,15 @@ export function resolveBattleGroup(
     if (ally.hp <= 0) {
       ally.hp = 0;
       ally.injured = true;
-      log.push(`${ally.name}进入重伤状态。`);
+      const text = `${ally.name}进入重伤状态。`;
+      log.push(text);
+      emitBattleEvent(emit, {
+        kind: 'defeat',
+        text,
+        targetId: ally.id,
+        targetName: ally.name,
+        hpLeft: ally.hp,
+      });
     }
   });
 
@@ -1248,16 +1476,22 @@ export function resolveBattleGroup(
     if (winningAlly) {
       rewardGold = applyVictoryPassives(winningAlly, { ...battleInput, rewardGold }, team, log);
     }
-    rewardGold += applySecondaryVictoryEffects(team, log);
-    log.push(`战斗胜利，获得${rewardGold}金币。`);
+    rewardGold += applySecondaryVictoryEffects(team, log, emit);
+    const text = `战斗胜利，获得${rewardGold}金币。`;
+    log.push(text);
+    emitLogEvent(emit, 'victory', text);
   }
 
   if (phase === 'relay') {
-    log.push(`本组角色已无法继续战斗，请选择${nextSlots}名伙伴接力。`);
+    const text = `本组角色已无法继续战斗，请选择${nextSlots}名伙伴接力。`;
+    log.push(text);
+    emitLogEvent(emit, 'relay', text);
   }
 
   if (phase === 'lost') {
-    log.push('所有伙伴都进入重伤状态，挑战失败。');
+    const text = '所有伙伴都进入重伤状态，挑战失败。';
+    log.push(text);
+    emitLogEvent(emit, 'lost', text);
   }
 
   const resolvedTeam = phase === 'won' || phase === 'lost' ? team.map(clearBattleOnlyState) : team;
@@ -1272,6 +1506,7 @@ export function resolveBattleGroup(
       selectedIds: phase === 'relay' ? [] : battleInput.selectedIds,
       rewardGold,
       log,
+      events,
       runtime,
       stats,
 

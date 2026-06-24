@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Character, CharacterTemplate } from '../game';
 import { GROUP_LABELS, RARITY_LABELS, ROLE_LABELS } from '../game';
 import { DRAFT_IMAGE_BY_ID } from '../assets';
@@ -21,6 +21,8 @@ export interface ShopScreenProps {
 
 export function ShopScreen({ gold, offers, selectedOffer, onSelectOffer, onBuy, onLeave }: ShopScreenProps) {
   const [pendingOffer, setPendingOffer] = useState<CharacterTemplate | null>(null);
+  const [goldPulse, setGoldPulse] = useState(false);
+  const previousGoldRef = useRef(gold);
   const pendingOfferAvailable = pendingOffer ? offers.some((offer) => offer.id === pendingOffer.id) : false;
   const canConfirmPurchase = Boolean(pendingOffer && pendingOfferAvailable && gold >= pendingOffer.price);
   const canBuySelectedOffer = Boolean(selectedOffer && offers.some((offer) => offer.id === selectedOffer.id) && gold >= selectedOffer.price);
@@ -34,24 +36,25 @@ export function ShopScreen({ gold, offers, selectedOffer, onSelectOffer, onBuy, 
     onSelectOffer(null);
   }
 
+  useEffect(() => {
+    if (previousGoldRef.current === gold) {
+      return;
+    }
+
+    previousGoldRef.current = gold;
+    setGoldPulse(true);
+    const timer = window.setTimeout(() => setGoldPulse(false), 620);
+    return () => window.clearTimeout(timer);
+  }, [gold]);
+
   return (
     <div className="flow-screen shop-screen">
       <div className="shop-header">
         <div className="shop-resource-bar">
-          <div className="shop-resource-pill gold-pill">
+          <div className={`shop-resource-pill gold-pill ${goldPulse ? 'resource-pulse' : ''}`}>
             <span>◎</span>
             <strong>金币 {gold}</strong>
           </div>
-          {selectedOffer && (
-            <button
-              className="primary-button shop-buy-button"
-              type="button"
-              disabled={!canBuySelectedOffer}
-              onClick={() => setPendingOffer(selectedOffer)}
-            >
-              购买 {selectedOffer.price}金币
-            </button>
-          )}
         </div>
       </div>
 
@@ -78,9 +81,21 @@ export function ShopScreen({ gold, offers, selectedOffer, onSelectOffer, onBuy, 
         <div className="empty-state">当前可招募角色已经全部加入队伍。</div>
       )}
       </div>
-      <button className="primary-button shop-leave-button" onClick={onLeave}>
+      <div className="shop-bottom-actions">
+        {selectedOffer && (
+          <button
+            className="primary-button shop-buy-button"
+            type="button"
+            disabled={!canBuySelectedOffer}
+            onClick={() => setPendingOffer(selectedOffer)}
+          >
+              购买 {selectedOffer.price}金币
+          </button>
+        )}
+        <button className="primary-button shop-leave-button" onClick={onLeave}>
         离开商店
-      </button>
+        </button>
+      </div>
       {pendingOffer && (
         <div className="modal-backdrop">
           <div className="reward-modal shop-confirm-modal">

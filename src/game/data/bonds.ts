@@ -9,7 +9,7 @@ export const BOND_GROUPS: BondGroup[] = [
     level2Name: '萌力扩散',
     level2Description: '全队攻击+1。',
     level3Name: '世界第一偶像',
-    level3Description: '全队攻击+3，暴击率+5%。',
+    level3Description: '全队攻击+3，暴击率+10%。',
   },
   {
     id: 'silver',
