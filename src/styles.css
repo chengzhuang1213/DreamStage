@@ -1931,6 +1931,56 @@ button {
   padding: 14px 12px;
 }
 
+.map-legend.collapsed {
+  padding: 0;
+}
+
+.map-legend-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  padding: 12px 14px;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.map-legend-toggle:hover,
+.map-legend-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.map-legend-chevron {
+  color: #ffe082;
+  font-size: 0.78rem;
+}
+
+.map-legend-content {
+  display: grid;
+  gap: 10px;
+}
+
+.map-rail-gold {
+  display: flex;
+  justify-content: center;
+  padding-top: 2px;
+}
+
+.map-rail-gold .resource-pill {
+  width: 100%;
+  justify-content: center;
+  border: 1px solid rgba(193, 218, 255, 0.44);
+  background: rgba(10, 23, 49, 0.72);
+}
+
 .map-left-rail,
 .map-right-rail {
   display: grid;
@@ -1939,7 +1989,7 @@ button {
 }
 
 .map-right-rail {
-  grid-template-rows: auto minmax(0, auto);
+  grid-template-rows: auto auto auto;
 }
 
 .map-legend h3,

@@ -258,21 +258,34 @@ function BondProgressDock({ team, onOpenDetails }: { team: Character[]; onOpenDe
   );
 }
 
-function MapLegend() {
+function MapLegend({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
   const entries: MapNode['type'][] = ['battle', 'elite', 'shop', 'rest', 'boss'];
 
   return (
-    <aside className="map-legend">
-      <h3>节点说明</h3>
-      {entries.map((type) => (
-        <div className={`legend-row node-${type}`} key={type}>
-          <span><img className="legend-icon-art" src={NODE_ICON_SRC[type]} alt="" /></span>
-          <div>
-            <strong>{NODE_LABELS[type]}</strong>
-            <small>{NODE_HELP[type]}</small>
-          </div>
+    <aside className={`map-legend ${expanded ? 'expanded' : 'collapsed'}`}>
+      <button
+        className="map-legend-toggle"
+        type="button"
+        aria-expanded={expanded}
+        aria-controls="map-node-legend"
+        onClick={onToggle}
+      >
+        <span>节点说明</span>
+        <span className="map-legend-chevron" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
+      </button>
+      {expanded && (
+        <div className="map-legend-content" id="map-node-legend">
+          {entries.map((type) => (
+            <div className={`legend-row node-${type}`} key={type}>
+              <span><img className="legend-icon-art" src={NODE_ICON_SRC[type]} alt="" /></span>
+              <div>
+                <strong>{NODE_LABELS[type]}</strong>
+                <small>{NODE_HELP[type]}</small>
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </aside>
   );
 }
@@ -454,8 +467,7 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
   const routeConnections = useMemo(() => getRouteConnections(nodes), [nodes]);
   const [activeModal, setActiveModal] = useState<MapModal>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const livingHp = team.reduce((sum, member) => sum + Math.max(0, member.hp), 0);
-  const maxHp = team.reduce((sum, member) => sum + member.maxHp, 0);
+  const [legendExpanded, setLegendExpanded] = useState(false);
   const hoveredNode = hoveredNodeId ? nodes.find((node) => node.id === hoveredNodeId && node.available && !node.completed) ?? null : null;
   const lastCompletedNode = [...nodes]
     .filter((node) => node.completed)
@@ -468,10 +480,7 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
       <header className="map-hud-topbar">
         <button className="map-back-button" type="button" aria-label={'\u8fd4\u56de'} onClick={() => setActiveModal('restart')}>{'\u2190'}</button>
         <h2>{'\u7b2c'}{boss.bossTier}{'\u5c42'}</h2>
-        <div className="map-resource-row">
-          <span className="resource-pill coin" data-tooltip={'\u91d1\u5e01\uff1a\u7528\u4e8e\u5546\u5e97\u62db\u52df\u3001\u4f11\u606f\u5904\u6cbb\u7597\u590d\u6d3b\uff0c\u4ee5\u53ca\u90e8\u5206\u5f3a\u5316\u8d39\u7528\u3002'} tabIndex={0}>{'\u91d1\u5e01 '}{gold}</span>
-          <span className="resource-pill heart" data-tooltip={'\u751f\u547d\uff1a\u5f53\u524d\u961f\u4f0d\u5b58\u6d3b\u751f\u547d\u603b\u548c / \u961f\u4f0d\u751f\u547d\u4e0a\u9650\u603b\u548c\u3002'} tabIndex={0}>{'\u751f\u547d '}{livingHp}/{maxHp || 0}</span>
-        </div>
+        <span aria-hidden="true" />
       </header>
 
       <BossForecast boss={boss} onOpen={() => setActiveModal('boss')} />
@@ -495,7 +504,10 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
         </div>
         <aside className="map-right-rail">
           <MapActions onOpenStats={onOpenStats} onOpenEvents={() => setActiveModal('events')} />
-          <MapLegend />
+          <MapLegend expanded={legendExpanded} onToggle={() => setLegendExpanded((expanded) => !expanded)} />
+          <div className="map-rail-gold">
+            <span className="resource-pill coin" data-tooltip={'\u91d1\u5e01\uff1a\u7528\u4e8e\u5546\u5e97\u62db\u52df\u3001\u4f11\u606f\u5904\u6cbb\u7597\u590d\u6d3b\uff0c\u4ee5\u53ca\u90e8\u5206\u5f3a\u5316\u8d39\u7528\u3002'} tabIndex={0}>{'\u91d1\u5e01 '}{gold}</span>
+          </div>
         </aside>
       </div>
 

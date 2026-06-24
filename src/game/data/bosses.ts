@@ -43,12 +43,12 @@ export const BOSS_TEMPLATES: BossTemplate[] = [
     passive: {
       id: 'boss_chika_regen',
       name: '闪闪发光',
-      description: '每回合恢复8点生命。',
+      description: '每回合恢复5点生命。',
     },
     skill: {
       id: 'boss_chika_together',
       name: '大家一起！',
-      description: '冷却1回合。恢复15点生命。',
+      description: '冷却1回合。恢复10点生命。',
     },
   },
   {

@@ -790,7 +790,7 @@ function takeTurn(
   }
 
   if (attacker.passive?.id === 'boss_chika_regen') {
-    const restored = heal(attacker, 8);
+    const restored = heal(attacker, 5);
     log.push(`${attacker.name}发动「${attacker.passive.name}」，恢复${restored}HP。`);
   }
 
@@ -805,7 +805,7 @@ function takeTurn(
     skillCooldown <= 0
   ) {
     if (attacker.skill.id === 'boss_chika_together') {
-      const restored = heal(attacker, 15);
+      const restored = heal(attacker, 10);
       log.push(`${attacker.name}发动「${attacker.skill.name}」，恢复${restored}HP。`);
     } else {
       addShield(attacker, 25, log, `发动「${attacker.skill.name}」`);
