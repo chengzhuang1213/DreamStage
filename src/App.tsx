@@ -1000,6 +1000,7 @@ function App() {
             <ShopScreen
               gold={run.gold}
               offers={run.shopOffers}
+              team={run.team}
               selectedOffer={shopSelectedOffer}
               onSelectOffer={setShopSelectedOffer}
               onBuy={buyCharacter}

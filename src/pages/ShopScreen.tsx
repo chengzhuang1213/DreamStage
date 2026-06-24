@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Character, CharacterTemplate } from '../game';
-import { GROUP_LABELS, RARITY_LABELS, ROLE_LABELS } from '../game';
-import { DRAFT_IMAGE_BY_ID } from '../assets';
+import { GROUP_LABELS, RARITY_LABELS, ROLE_LABELS, getActiveBonds, getActiveSecondaryBonds } from '../game';
+import { BOND_LOGO_SRC, DRAFT_IMAGE_BY_ID } from '../assets';
 import { Avatar } from '../components/common';
 import { getEnhancementChangeLines, getUpgradeEffectLines, HighlightText, maxUpgradeLevel } from '../game/data/upgrades';
 
@@ -13,16 +13,32 @@ function draftImageSrc(character: CharacterTemplate | Character) {
 export interface ShopScreenProps {
   gold: number;
   offers: CharacterTemplate[];
+  team: Character[];
   selectedOffer: CharacterTemplate | null;
   onSelectOffer: (template: CharacterTemplate | null) => void;
   onBuy: (template: CharacterTemplate) => void;
   onLeave: () => void;
 }
 
-export function ShopScreen({ gold, offers, selectedOffer, onSelectOffer, onBuy, onLeave }: ShopScreenProps) {
+function useMobileShopMode() {
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 820px)').matches);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 820px)');
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  return isMobile;
+}
+
+export function ShopScreen({ gold, offers, team, selectedOffer, onSelectOffer, onBuy, onLeave }: ShopScreenProps) {
   const [pendingOffer, setPendingOffer] = useState<CharacterTemplate | null>(null);
   const [goldPulse, setGoldPulse] = useState(false);
   const previousGoldRef = useRef(gold);
+  const isMobileShop = useMobileShopMode();
   const pendingOfferAvailable = pendingOffer ? offers.some((offer) => offer.id === pendingOffer.id) : false;
   const canConfirmPurchase = Boolean(pendingOffer && pendingOfferAvailable && gold >= pendingOffer.price);
   const canBuySelectedOffer = Boolean(selectedOffer && offers.some((offer) => offer.id === selectedOffer.id) && gold >= selectedOffer.price);
@@ -73,6 +89,9 @@ export function ShopScreen({ gold, offers, selectedOffer, onSelectOffer, onBuy, 
               unaffordable={gold < offer.price}
               onClick={() => {
                 onSelectOffer(offer);
+                if (isMobileShop) {
+                  setPendingOffer(offer);
+                }
               }}
             />
           ))}
@@ -81,6 +100,7 @@ export function ShopScreen({ gold, offers, selectedOffer, onSelectOffer, onBuy, 
         <div className="empty-state">当前可招募角色已经全部加入队伍。</div>
       )}
       </div>
+      <ShopRunPreview team={team} />
       <div className="shop-bottom-actions">
         {selectedOffer && (
           <button
@@ -124,6 +144,63 @@ export function ShopScreen({ gold, offers, selectedOffer, onSelectOffer, onBuy, 
         </div>
       )}
     </div>
+  );
+}
+
+function ShopRunPreview({ team }: { team: Character[] }) {
+  const slots = Array.from({ length: 4 }, (_, index) => team[index] ?? null);
+  const primaryBonds = getActiveBonds(team).filter((bond) => bond.count > 0);
+  const secondaryBonds = getActiveSecondaryBonds(team).filter((bond) => bond.count > 0);
+  const visibleBonds = [
+    ...primaryBonds.map((bond) => ({
+      id: bond.group.id,
+      name: bond.group.name,
+      count: bond.count,
+      total: 3,
+      active: bond.level > 0,
+      logoSrc: BOND_LOGO_SRC[bond.group.id],
+    })),
+    ...secondaryBonds.map((activeBond) => ({
+      id: activeBond.bond.id,
+      name: activeBond.bond.name,
+      count: activeBond.count,
+      total: 2,
+      active: activeBond.active,
+      logoSrc: BOND_LOGO_SRC[activeBond.bond.id],
+    })),
+  ].sort((left, right) => Number(right.active) - Number(left.active) || right.count - left.count || right.total - left.total);
+
+  return (
+    <section className="shop-run-preview" aria-label="当前队伍和羁绊">
+      <div>
+        <strong>已有成员</strong>
+        <div className="shop-team-strip">
+          {slots.map((member, index) => member ? (
+            <div className={`shop-team-chip rarity-${member.rarity} ${member.injured ? 'injured' : ''}`} key={member.id}>
+              <Avatar character={member} label={member.name} small />
+              <span>{member.name}</span>
+              <small>{member.injured ? '重伤' : `${member.hp}/${member.maxHp}`}</small>
+            </div>
+          ) : (
+            <div className="shop-team-chip empty" key={`empty-${index}`}>空位</div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <strong>羁绊</strong>
+        <div className="shop-bond-strip">
+          {visibleBonds.length > 0 ? visibleBonds.map((bond) => (
+            <div className={`shop-bond-chip ${bond.active ? 'active' : 'inactive'}`} key={bond.id}>
+              {bond.logoSrc && <img src={bond.logoSrc} alt="" />}
+              <span>{bond.name}</span>
+              <small>{bond.count}/{bond.total}</small>
+            </div>
+          )) : (
+            <div className="shop-bond-chip empty">暂无羁绊</div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

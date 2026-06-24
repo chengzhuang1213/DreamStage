@@ -322,7 +322,7 @@
     grid-template-columns: 86px minmax(0, 1fr);
     grid-template-rows: none;
     min-height: 0;
-    height: 156px;
+    height: 168px;
     overflow: hidden;
   }
 
@@ -394,6 +394,8 @@
   .draft-card-body em {
     margin-top: 0;
     font-size: 0.86rem;
+    line-height: 1.2;
+    white-space: nowrap;
   }
 
   .draft-bonds {
@@ -482,7 +484,7 @@
 @media (max-width: 420px) {
   .draft-page .draft-card {
     grid-template-columns: 82px minmax(0, 1fr);
-    height: 152px;
+    height: 164px;
   }
 
   .draft-card-body {
