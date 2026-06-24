@@ -279,3 +279,137 @@
   color: #596579;
   line-height: 1.7;
 }
+
+@media (max-width: 820px) {
+  .draft-page {
+    gap: 14px;
+    padding: 10px 0 18px;
+  }
+
+  .draft-toolbar {
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .draft-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .draft-actions button {
+    min-height: 44px;
+    width: 100%;
+    padding-inline: 10px;
+  }
+
+  .draft-grid {
+    gap: 12px;
+  }
+
+  .draft-card {
+    grid-template-columns: minmax(96px, 34%) minmax(0, 1fr);
+    grid-template-rows: none;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .draft-card:hover,
+  .draft-card.selected {
+    transform: none;
+  }
+
+  .draft-card.selected {
+    outline-width: 3px;
+    outline-offset: 1px;
+  }
+
+  .draft-portrait {
+    min-height: 100%;
+    border-right: 1px solid #dbe3ef;
+    border-bottom: 0;
+  }
+
+  .draft-portrait img {
+    object-position: center top;
+  }
+
+  .draft-card-body {
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .draft-card-body .card-tags {
+    gap: 4px;
+    margin-bottom: 2px;
+  }
+
+  .draft-card-body .card-tag-row {
+    min-height: 0;
+    gap: 4px;
+  }
+
+  .draft-card-body .group-tag,
+  .draft-card-body .rarity-tag {
+    padding: 2px 6px;
+    font-size: 0.68rem;
+  }
+
+  .draft-card-body h3 {
+    font-size: 1.05rem;
+  }
+
+  .draft-stats {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .draft-stats span {
+    padding: 5px 4px;
+    font-size: 0.68rem;
+    text-align: center;
+  }
+
+  .draft-stats strong {
+    font-size: 0.9rem;
+  }
+
+  .draft-ability {
+    height: auto;
+    max-height: 72px;
+    padding: 6px 7px;
+  }
+
+  .draft-ability p {
+    font-size: 0.76rem;
+    line-height: 1.42;
+  }
+
+  .draft-card-body em {
+    margin-top: 0;
+    font-size: 0.86rem;
+  }
+
+  .draft-bonds {
+    padding: 12px;
+  }
+
+  .draft-bond-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .draft-card {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .draft-card-body {
+    padding: 9px;
+  }
+
+  .draft-ability {
+    max-height: 64px;
+  }
+}

@@ -62,11 +62,18 @@ export const HERO_SKIN_ILLUSTRATIONS: Record<string, string> = {
   kanata: '/cards/Image/Image_Skins/近江彼方皮肤.battle.png',
 };
 
+export const HERO_BATTLE_TRANSFORM_ILLUSTRATIONS: Record<string, string> = {
+  keke: '/cards/Image/Image_Skins/唐可可皮肤变身后.battle.png',
+};
+
 export function getBattleIllustration(character: Character) {
+  if (character.battleSkin) {
+    return character.battleSkin;
+  }
+
   if (character.rarity === 'legendary' && HERO_SKIN_ILLUSTRATIONS[character.templateId]) {
     return HERO_SKIN_ILLUSTRATIONS[character.templateId];
   }
 
   return ENEMY_ILLUSTRATIONS[character.templateId] ?? HERO_ILLUSTRATIONS[character.templateId] ?? character.avatar;
 }
-

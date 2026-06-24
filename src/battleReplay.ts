@@ -298,5 +298,6 @@ export function applySnapshot(character: Character, units?: BattleUnitSnapshot[]
     maxHp: snapshot.maxHp,
     shield: snapshot.shield,
     injured: snapshot.injured,
+    battleSkin: snapshot.battleSkin,
   };
 }

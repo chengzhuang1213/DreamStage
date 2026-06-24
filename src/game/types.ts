@@ -119,6 +119,7 @@ export interface Character {
   color: string;
   accent: string;
   avatar: string;
+  battleSkin?: string;
   shield: number;
   poison: number;
   vulnerable: number;
@@ -187,6 +188,7 @@ export interface RuntimeFlags {
   nozoeliOnField?: boolean;
   tarotMagicianUsedThisTurn?: boolean;
   tarotMagicianTriggeredLastSkill?: boolean;
+  eliteUmiCalloutUsedThisTurn?: boolean;
   campusLeaderOnField?: boolean;
   energeticIdolOnField?: boolean;
   mysteryOnFieldLevel?: 0 | 1 | 2 | 3;
@@ -213,6 +215,7 @@ export interface BattleUnitSnapshot {
   maxHp: number;
   shield: number;
   injured: boolean;
+  battleSkin?: string;
 }
 
 export type BattleEventKind =

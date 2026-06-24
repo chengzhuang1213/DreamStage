@@ -1,6 +1,7 @@
 ﻿import type { BattlePhase, BattleState, BattleStats, Character, CharacterBattleStats, RuntimeFlags, RuntimeState, BattleType, UpgradeLevel } from './types';
 import { hasBond, hasSecondaryBond } from './bonds';
 import type { BattleEvent, BattleEventKind } from './types';
+import { HERO_BATTLE_TRANSFORM_ILLUSTRATIONS } from '../battleAssets';
 import { ROLE_DAMAGE_MULTIPLIERS, ROLE_LABELS } from './data/labels';
 
 export function getBattleSlots(type: BattleType, aliveCount: number): number {
@@ -37,6 +38,7 @@ function clearBattleOnlyState(character: Character): Character {
     shieldGainReduced: false,
     healingReduced: false,
     battleMaxHpBonus: 0,
+    battleSkin: undefined,
   };
 }
 
@@ -78,6 +80,7 @@ function createBattleEventEmitter(events: BattleEvent[], team: Character[], enem
         maxHp: unit.maxHp,
         shield: unit.shield,
         injured: unit.injured,
+        battleSkin: unit.battleSkin,
       })),
     });
   };
@@ -524,7 +527,10 @@ function calculateDamage(
 
   if (attacker.passive?.id === 'elite_umi_low_hp' && attacker.hp / attacker.maxHp < 0.6) {
     damage *= 2;
-    log.push(`${attacker.name}发动「${attacker.passive.name}」，攻击力翻倍。`);
+    if (!flags.eliteUmiCalloutUsedThisTurn) {
+      flags.eliteUmiCalloutUsedThisTurn = true;
+      pushCallout(`${attacker.name}发动「${attacker.passive.name}」，攻击力翻倍。`);
+    }
   }
 
   if (attacker.passive?.id === 'enemy_hanamaru_low_hp' && attacker.hp / attacker.maxHp < 0.5) {
@@ -1027,6 +1033,7 @@ function takeTurn(
   const flags = getFlags(runtime, attacker.id);
   flags.tarotMagicianUsedThisTurn = false;
   flags.tarotMagicianTriggeredLastSkill = false;
+  flags.eliteUmiCalloutUsedThisTurn = false;
   const chargeCooldown = flags.kekeChargeCooldown ?? 0;
   const skillCooldown = flags.skillCooldown ?? 0;
 
@@ -1272,10 +1279,20 @@ function takeTurn(
   if (attacker.skill.id === 'keke_charge' && !flags.transformed && !flags.skillUsedOnce) {
     flags.transformed = true;
     flags.skillUsedOnce = true;
+    attacker.battleSkin = HERO_BATTLE_TRANSFORM_ILLUSTRATIONS.keke;
     const attackBonus = upgradeLevel(attacker) >= 5 ? 5 : upgradeLevel(attacker) >= 3 ? 3 : 1;
     attacker.attack += attackBonus;
     attacker.speed += 1;
-    log.push(`${attacker.name}发动《超级变身》，变身完成，攻击力+${attackBonus}，速度+1。`);
+    const text = `${attacker.name}发动《超级变身》，变身完成，攻击力+${attackBonus}，速度+1。`;
+    log.push(text);
+    emitBattleEvent(emit, {
+      kind: 'major',
+      text,
+      actorId: attacker.id,
+      targetId: defender.id,
+      actorName: attacker.name,
+      targetName: defender.name,
+    });
     return;
   }
 

@@ -434,6 +434,14 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
   ) : null;
 
   useEffect(() => {
+    if (!window.matchMedia('(max-width: 820px)').matches) {
+      return;
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [battle.nodeId]);
+
+  useEffect(() => {
     setReplayStep(0);
   }, [replayKey]);
 
