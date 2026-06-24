@@ -1,19 +1,19 @@
-import type { GroupId, IdolRarity, BossTier, EliteTier, EnemyPoolId, UpgradeLevel, SecondaryBondId, PassiveId, SkillId, Ability, CharacterTemplate, Character, NodeType, BattleType, MapNode, RuntimeFlags, RuntimeState, BattlePhase, CharacterBattleStats, BattleStats, BattleState, BondGroup, ActiveBond, BossTemplate, EliteTemplate, EnemyTemplate, SecondaryBond, ActiveSecondaryBond } from './game/types';
+import type { GroupId, IdolRarity, RoleId, BossTier, EliteTier, EnemyPoolId, UpgradeLevel, SecondaryBondId, PassiveId, SkillId, Ability, CharacterTemplate, Character, NodeType, BattleType, MapNode, RuntimeFlags, RuntimeState, BattlePhase, CharacterBattleStats, BattleStats, BattleState, BondGroup, ActiveBond, BossTemplate, EliteTemplate, EnemyTemplate, SecondaryBond, ActiveSecondaryBond } from './game/types';
 import { BOND_GROUPS, SECONDARY_BONDS } from './game/data/bonds';
 import { BOSS_TEMPLATES } from './game/data/bosses';
 import { CHARACTER_POOL } from './game/data/characters';
 import { BATTLE_ENEMY_TEMPLATES, STRONG_ENEMY_TEMPLATES, WEAK_ENEMY_TEMPLATES } from './game/data/enemies';
 import { ELITE_TEMPLATES } from './game/data/elites';
-import { GROUP_LABELS, NODE_LABELS, RARITY_LABELS, REWARD_GOLD } from './game/data/labels';
+import { GROUP_LABELS, NODE_LABELS, RARITY_LABELS, ROLE_DAMAGE_MULTIPLIERS, ROLE_LABELS, REWARD_GOLD } from './game/data/labels';
 import { hasSecondaryBond } from './game/bonds';
 
-export type { GroupId, IdolRarity, BossTier, EliteTier, EnemyPoolId, UpgradeLevel, SecondaryBondId, PassiveId, SkillId, Ability, CharacterTemplate, Character, NodeType, BattleType, MapNode, RuntimeFlags, RuntimeState, BattlePhase, CharacterBattleStats, BattleStats, BattleState, BondGroup, ActiveBond, BossTemplate, EliteTemplate, EnemyTemplate, SecondaryBond, ActiveSecondaryBond } from './game/types';
+export type { GroupId, IdolRarity, RoleId, BossTier, EliteTier, EnemyPoolId, UpgradeLevel, SecondaryBondId, PassiveId, SkillId, Ability, CharacterTemplate, Character, NodeType, BattleType, MapNode, RuntimeFlags, RuntimeState, BattlePhase, CharacterBattleStats, BattleStats, BattleState, BondGroup, ActiveBond, BossTemplate, EliteTemplate, EnemyTemplate, SecondaryBond, ActiveSecondaryBond } from './game/types';
 export { BOND_GROUPS, SECONDARY_BONDS } from './game/data/bonds';
 export { BOSS_TEMPLATES } from './game/data/bosses';
 export { CHARACTER_POOL } from './game/data/characters';
 export { BATTLE_ENEMY_TEMPLATES, STRONG_ENEMY_TEMPLATES, WEAK_ENEMY_TEMPLATES } from './game/data/enemies';
 export { ELITE_TEMPLATES } from './game/data/elites';
-export { GROUP_LABELS, NODE_LABELS, RARITY_LABELS, REWARD_GOLD } from './game/data/labels';
+export { GROUP_LABELS, NODE_LABELS, RARITY_LABELS, ROLE_DAMAGE_MULTIPLIERS, ROLE_LABELS, REWARD_GOLD } from './game/data/labels';
 export { getActiveBonds, getActiveSecondaryBonds, hasBond, hasSecondaryBond } from './game/bonds';
 export { copyCharacter, getBattleSlots, resolveBattleGroup, resolveBattleSegment } from './game/battle';
 
@@ -116,6 +116,7 @@ function createCharacter(template: CharacterTemplate, id: string, overrides: Par
     name: template.name,
     group: template.group,
     rarity: template.rarity,
+    role: template.role,
     hp: template.maxHp,
     maxHp: template.maxHp,
     attack: template.attack,
@@ -152,7 +153,7 @@ export function createAlly(template: CharacterTemplate): Character {
 
 export function createEnemy(template: EnemyTemplate, type: BattleType, index: number): Character {
   return createCharacter(template, `enemy-${template.id}-${type}-${index}-${Math.random().toString(36).slice(2, 7)}`, {
-    name: `敌方${template.name}`,
+    name: `对手 ${template.name}`,
     price: 0,
   });
 }
@@ -248,14 +249,7 @@ export function completeMapNode(nodes: MapNode[], nodeId: string): MapNode[] {
 }
 
 export function applyPostNodePassives(teamInput: Character[]): Character[] {
-  let team = teamInput.map((member) => {
-    if (member.passive?.id !== 'kanata_nap' || member.injured || member.hp <= 0) {
-      return member;
-    }
-
-    const hp = Math.min(member.maxHp, member.hp + 15);
-    return { ...member, hp };
-  });
+  let team = teamInput;
 
   if (hasSecondaryBond(team, 'dreamer')) {
     team = team.map((member) => {

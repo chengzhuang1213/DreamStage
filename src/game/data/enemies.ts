@@ -148,7 +148,7 @@ export const WEAK_ENEMY_TEMPLATES: EnemyTemplate[] = [
   },
   {
     id: 'enemy_miracle_kana',
-    name: 'Mira-Cra Park Kana',
+    name: '金泽奇迹',
     group: 'silver',
     rarity: 'enemy',
     enemyTier: 'weak',
@@ -164,7 +164,7 @@ export const WEAK_ENEMY_TEMPLATES: EnemyTemplate[] = [
   },
   {
     id: 'enemy_noriko',
-    name: 'Noriko Chofu',
+    name: '调布乃理子',
     group: 'mystery',
     rarity: 'enemy',
     enemyTier: 'weak',

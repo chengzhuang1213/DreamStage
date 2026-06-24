@@ -1,4 +1,4 @@
-import type { BattleType, GroupId, IdolRarity, NodeType } from '../types';
+import type { BattleType, GroupId, IdolRarity, NodeType, RoleId } from '../types';
 
 export const GROUP_LABELS: Record<GroupId, string> = {
   cute: '可爱甜心',
@@ -15,6 +15,20 @@ export const RARITY_LABELS: Record<IdolRarity, string> = {
   enemy: '小怪',
   elite: '精英',
   boss: 'Boss',
+};
+
+export const ROLE_LABELS: Record<RoleId, string> = {
+  tank: '坦克',
+  fighter: '战士',
+  assassin: '刺客',
+  support: '辅助',
+};
+
+export const ROLE_DAMAGE_MULTIPLIERS: Record<RoleId, number> = {
+  tank: 1,
+  fighter: 0.9,
+  assassin: 0.7,
+  support: 1.2,
 };
 
 export const NODE_LABELS: Record<NodeType, string> = {

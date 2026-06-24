@@ -4,6 +4,7 @@ import {
   BOND_GROUPS,
   NODE_LABELS,
   RARITY_LABELS,
+  ROLE_LABELS,
   SECONDARY_BONDS,
   applyPostNodePassives,
   type BattleStats,
@@ -181,6 +182,48 @@ function getSecondaryBondsForTemplate(templateId: string) {
   return SECONDARY_BONDS.filter((bond) => bond.memberIds.includes(templateId));
 }
 
+function groupDetail(groupId: CharacterTemplate['group']) {
+  const group = BOND_GROUPS.find((bond) => bond.id === groupId);
+  if (!group) {
+    return `${GROUP_LABELS[groupId]}：主羁绊。`;
+  }
+  return `${group.name}：${group.theme}。2人：${group.level2Name}，${group.level2Description} 3人：${group.level3Name}，${group.level3Description}`;
+}
+
+function rarityDetail(rarity: CharacterTemplate['rarity']) {
+  const details: Record<CharacterTemplate['rarity'], string> = {
+    legendary: '传奇偶像：稀有度最高，基础数值和技能强度通常更高。',
+    star: '明星偶像：核心战力，通常拥有更强的成长空间。',
+    normal: '普通偶像：容易成型，适合补齐羁绊和队伍空位。',
+    enemy: '小怪：普通敌人，击败后获得少量金币。',
+    elite: '精英：高威胁敌人，击败后可获得强化机会。',
+    boss: 'Boss：层末首领，击败后推进到下一层。',
+  };
+  return details[rarity];
+}
+
+function roleDetail(role: CharacterTemplate['role']) {
+  if (!role) {
+    return '';
+  }
+
+  const details: Record<NonNullable<CharacterTemplate['role']>, string> = {
+    tank: '坦克：承受标准伤害，通常生命值更高，适合前排承压。',
+    fighter: '战士：受到伤害降低到90%，兼顾输出和生存。',
+    assassin: '刺客：受到伤害降低到70%，更适合高风险输出。',
+    support: '辅助：受到伤害提高到120%，更依赖保护和站位。',
+  };
+  return details[role];
+}
+
+function InfoPill({ className, label, tooltip }: { className: string; label: string; tooltip: string }) {
+  return (
+    <span className={`${className} info-pill`.trim()} data-tooltip={tooltip} tabIndex={0}>
+      {label}
+    </span>
+  );
+}
+
 function getBondGroupForTemplate(template: CharacterTemplate) {
   return BOND_GROUPS.find((group) => group.id === template.group) ?? null;
 }
@@ -193,8 +236,11 @@ function maxUpgradeLevel(rarity: Character['rarity'] | CharacterTemplate['rarity
   if (rarity === 'normal') {
     return 2;
   }
-  if (rarity === 'star' || rarity === 'legendary') {
+  if (rarity === 'star') {
     return 3;
+  }
+  if (rarity === 'legendary') {
+    return 5;
   }
   return 1;
 }
@@ -206,17 +252,17 @@ function getUpgradeEffectLines(templateId: string, level: number): string[] {
     case 'rina':
       return level >= 2 ? ['技能：50%概率追加攻击，并获得10护盾。'] : ['技能：30%概率追加攻击。'];
     case 'nico':
-      return level >= 3 ? ['被动：每次使用技能攻击力+4。', '技能：失去10%当前生命，连续攻击4次。'] : level >= 2 ? ['被动：每次使用技能攻击力+4。', '技能：失去10%当前生命，连续攻击3次。'] : ['被动：每次使用技能攻击力+3。', '技能：失去10%当前生命，连续攻击3次。'];
+      return level >= 5 ? ['被动：每次使用技能时，攻击力永久提高4点。', '技能：连续攻击4次，不损失生命，可连续释放但生命值必须高于20%，基础攻击力+1。'] : level >= 4 ? ['被动：每次使用技能时，攻击力永久提高4点。', '技能：连续攻击3次，不损失生命，可连续释放但生命值必须高于20%，基础攻击力+1。'] : level >= 3 ? ['被动：每次使用技能时，攻击力永久提高4点。', '技能：连续攻击3次，不再损失生命值，基础攻击力+1。'] : level >= 2 ? ['被动：每次使用技能时，攻击力永久提高4点。', '技能：失去当前生命值10%，连续攻击2次。'] : ['被动：每次使用技能时，攻击力永久提高3点。', '技能CD1：失去当前生命值10%，连续攻击2次。'];
     case 'kotori':
       return level >= 3 ? ['被动：攻击击碎所有护盾，后续护盾量减半。', '技能：Lv2强化暴击率提升至50%；先结算技能伤害，再额外造成10点真实伤害。'] : level >= 2 ? ['被动：攻击击碎所有护盾，后续护盾量减半。', '技能：Lv2强化暴击率提升至50%，暴击造成2倍伤害。'] : ['被动：攻击击碎所有护盾，后续护盾量减半。', '技能：30%暴击，暴击造成2倍伤害。'];
     case 'keke':
-      return level >= 3 ? ['被动：造成伤害的30%恢复为生命。', '技能CD1：立即发动，50%造成3倍伤害，50%造成4倍伤害。'] : level >= 2 ? ['被动：造成伤害的30%恢复为生命。', '技能CD1：立即发动，本次攻击造成2倍伤害。'] : ['被动：造成伤害的30%恢复为生命。', '技能CD1：本回合不攻击，下次攻击造成2倍伤害。'];
+      return level >= 5 ? ['被动：每次攻击恢复造成伤害15%的生命值。', '超级变身：攻击力+5，速度+1，仅一次。', '可可重击：10%造成5倍伤害，90%造成3.3倍伤害。'] : level >= 4 ? ['被动：每次攻击恢复造成伤害15%的生命值。', '超级变身：攻击力+3，速度+1，仅一次。', '可可重击：10%造成4倍伤害，90%造成2.5倍伤害。'] : level >= 3 ? ['被动：每次攻击恢复造成伤害15%的生命值。', '超级变身：攻击力+3，速度+1，仅一次。', '可可重击：10%造成3倍伤害，90%造成1.75倍伤害。'] : level >= 2 ? ['被动：每次攻击恢复造成伤害15%的生命值。', '超级变身：攻击力+1，速度+1，仅一次。', '解锁可可重击：10%造成3倍伤害，90%造成1.75倍伤害。'] : ['被动：每次攻击恢复造成伤害15%的生命值。', '超级变身：全场仅一次，攻击力+1，速度+1，本回合不进行其他行动。'];
     case 'you':
       return level >= 2 ? ['技能：首次攻击施加易损，下次伤害2.5倍。'] : ['技能：首次攻击施加易损，下次伤害2倍。'];
     case 'eli':
       return level >= 3 ? ['被动：每受到一次攻击，本场攻击力+1。', '技能CD1：全体友方攻击力+4，并获得2点速度。'] : level >= 2 ? ['被动：每受到一次攻击，本场攻击力+1。', '技能CD1：全体友方攻击力+3。'] : ['被动：每受到一次攻击，本场攻击力+1。', '技能CD1：全体友方攻击力+2。'];
     case 'mari':
-      return level >= 3 ? ['被动：拥有护盾时伤害提高150%。', '技能：获得20护盾。'] : level >= 2 ? ['被动：拥有护盾时伤害提高100%。', '技能：获得15护盾。'] : ['被动：拥有护盾时伤害提高50%。', '技能：获得10护盾。'];
+      return level >= 5 ? ['核心资源：战意。每次攻击和释放技能获得1层战意。', '每层战意每回合提供1护盾和0.5攻击力；技能伤害每层+3%。', '战意上限7层，达到7层时「理事长的完美谢幕」直接斩杀目标。'] : level >= 4 ? ['核心资源：战意。每次攻击和释放技能获得1层战意。', '每层战意每回合提供1护盾和0.5攻击力；技能伤害每层+3%。'] : level >= 3 ? ['核心资源：战意。每次攻击和释放技能获得1层战意。', '每层战意每回合提供1护盾和0.5攻击力。'] : level >= 2 ? ['核心资源：战意。开场获得2层战意。', '每层战意每回合提供0.5护盾和0.5攻击力。'] : ['核心资源：战意。每次攻击和释放技能获得1层战意。', '理事长的完美谢幕：进行一次攻击；若拥有护盾，必定暴击并造成1.5倍伤害。'];
     case 'ren':
       return level >= 2 ? ['被动：生命值额外+50。', '无主动技能。'] : ['被动：生命值额外+30。', '无主动技能。'];
     case 'yoshiko':
@@ -224,10 +270,102 @@ function getUpgradeEffectLines(templateId: string, level: number): string[] {
     case 'nozomi':
       return level >= 2 ? ['被动：每回合开始获得3点护盾。', '技能：给一名非自己的友方8点护盾。'] : ['被动：每回合开始获得3点护盾。', '技能：给一名非自己的友方5点护盾。'];
     case 'kanata':
-      return level >= 3 ? ['被动：战斗结束后生命强制变为50%。', '技能：敌方生命低于35%立即斩杀。', 'Boss战首次受到致命伤害时保留1HP，下次攻击3倍。'] : level >= 2 ? ['被动：战斗结束后生命强制变为50%。', '技能：敌方生命低于30%立即斩杀。', 'Boss战首次受到致命伤害时保留1HP，下次攻击3倍。'] : ['被动：战斗结束后生命强制变为50%。', '技能：敌方生命低于30%立即斩杀。'];
+      return level >= 5 ? ['被动：每回合给敌人施加1层梦境，最多2层；每层使彼方伤害+8%。', '技能：造成攻击力100%伤害；50%追加目标当前生命20%，否则追加10%；结算后目标低于30%立即斩杀。'] : level >= 4 ? ['被动：每回合给敌人施加1层梦境，最多2层；每层使彼方伤害+8%。', '技能：造成攻击力100%伤害；20%追加目标当前生命20%，否则追加10%；结算后目标低于20%立即斩杀。'] : level >= 3 ? ['被动：每回合给敌人施加1层梦境，最多2层；每层使彼方伤害+5%。', '技能：造成攻击力100%伤害；20%追加目标当前生命20%，否则追加10%；结算后目标低于20%立即斩杀。'] : level >= 2 ? ['被动：每回合给敌人施加1层梦境，最多2层；每层使彼方伤害+5%。', '技能：造成攻击力100%伤害；20%追加目标当前生命20%，否则追加10%。'] : ['被动：每回合给敌人施加1层梦境，最多2层；每层使彼方伤害+3%。', '技能：造成攻击力100%伤害；20%追加目标当前生命20%，否则追加10%。'];
     default:
       return [];
   }
+}
+
+function getUpgradeChangeLines(templateId: string, level: number): string[] {
+  const changes: Record<string, Record<number, string[]>> = {
+    ayumu: {
+      2: ['全体恢复 5生命 -> 10生命。'],
+      3: ['全体恢复 10生命 -> 15生命，新增解除所有毒层。'],
+    },
+    rina: {
+      2: ['追加攻击概率 30% -> 50%，新增获得10护盾。'],
+    },
+    nico: {
+      2: ['被动攻击力成长 +3 -> +4。'],
+      3: ['连续攻击 2次 -> 3次，不再损失生命，基础攻击力+1。'],
+      4: ['技能可连续释放，条件为生命值高于20%。'],
+      5: ['连续攻击 3次 -> 4次。'],
+    },
+    kotori: {
+      2: ['暴击率 30% -> 50%。'],
+      3: ['新增额外造成10点真实伤害。'],
+    },
+    keke: {
+      2: ['解锁可可重击：10%造成3倍伤害，90%造成1.75倍伤害。'],
+      3: ['超级变身攻击力 +1 -> +3。'],
+      4: ['可可重击提高为10%造成4倍，90%造成2.5倍。'],
+      5: ['超级变身攻击力 +3 -> +5；可可重击提高为10%造成5倍，90%造成3.3倍。'],
+    },
+    you: {
+      2: ['易损倍率 2倍 -> 2.5倍。'],
+    },
+    eli: {
+      2: ['全体攻击力 +2 -> +3。'],
+      3: ['全体攻击力 +3 -> +4，新增速度+2。'],
+    },
+    mari: {
+      2: ['开场获得2层战意；每层护盾为0.5。'],
+      3: ['每次攻击和释放技能获得1层战意；每层护盾 0.5 -> 1。'],
+      4: ['新增技能伤害每层战意+3%。'],
+      5: ['战意上限7层，达到7层时直接斩杀目标。'],
+    },
+    ren: {
+      2: ['额外生命 +30 -> +50。'],
+    },
+    yoshiko: {
+      2: ['技能附加毒层 3层 -> 4层。'],
+      3: ['目标已有毒时，攻击额外+3伤害。'],
+    },
+    nozomi: {
+      2: ['给友方护盾 5 -> 8。'],
+    },
+    kanata: {
+      2: ['每层梦境伤害 +3% -> +5%。'],
+      3: ['技能新增：结算后目标低于20%立即斩杀。'],
+      4: ['每层梦境伤害 +5% -> +8%。'],
+      5: ['追加当前生命20%的概率 20% -> 50%；斩杀线 20% -> 30%。'],
+    },
+  };
+
+  return changes[templateId]?.[level] ?? getUpgradeEffectLines(templateId, level);
+}
+
+function HighlightText({ text }: { text: string }) {
+  const pattern = /(LV\d+|CD\d+|[+-]?\d+(?:\.\d+)?倍|[+-]?\d+(?:\.\d+)?%|[+-]?\d+(?:\.\d+)?)/g;
+  const exactPattern = /^(LV\d+|CD\d+|[+-]?\d+(?:\.\d+)?倍|[+-]?\d+(?:\.\d+)?%|[+-]?\d+(?:\.\d+)?)$/;
+  return (
+    <>
+      {text.split(pattern).map((part, index) =>
+        exactPattern.test(part) ? <span className="value-highlight" key={`${part}-${index}`}>{part}</span> : part,
+      )}
+    </>
+  );
+}
+
+function UpgradePreview({ template }: { template: CharacterTemplate }) {
+  if (template.rarity === 'enemy' || template.rarity === 'elite' || template.rarity === 'boss') {
+    return null;
+  }
+
+  const maxLevel = maxUpgradeLevel(template.rarity);
+  const levels = Array.from({ length: Math.max(0, maxLevel - 1) }, (_, index) => index + 2);
+
+  return (
+    <div className="upgrade-preview">
+      <span>升级预览</span>
+      {levels.map((level) => (
+        <div className="upgrade-preview-row" key={level}>
+          <b>LV{level}</b>
+          <p><HighlightText text={getUpgradeChangeLines(template.id, level).join(' ')} /></p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function App() {
@@ -288,7 +426,7 @@ function App() {
   }
 
   function playSfx(key: SfxKey) {
-    if (!audioUnlockedRef.current) {
+    if (musicMuted || !audioUnlockedRef.current) {
       return;
     }
 
@@ -550,11 +688,12 @@ function App() {
         return previous;
       }
 
-      const selectedIds = previous.battle.selectedIds.includes(id)
+      const alreadySelected = previous.battle.selectedIds.includes(id);
+      const selectedIds = alreadySelected
         ? previous.battle.selectedIds.filter((selectedId) => selectedId !== id)
         : previous.battle.selectedIds.length < previous.battle.slots
           ? [...previous.battle.selectedIds, id]
-          : previous.battle.selectedIds;
+          : [...previous.battle.selectedIds.slice(0, -1), id];
 
       return {
         ...previous,
@@ -652,7 +791,7 @@ function App() {
           }
 
           const currentLevel = member.upgradeLevel ?? 1;
-          const nextLevel = Math.min(maxUpgradeLevel(member.rarity), currentLevel + 1) as 1 | 2 | 3;
+          const nextLevel = Math.min(maxUpgradeLevel(member.rarity), currentLevel + 1) as Character['upgradeLevel'];
           const renHpBonus = member.templateId === 'ren' && currentLevel === 1 && nextLevel >= 2 ? 20 : 0;
           return {
             ...member,
@@ -668,7 +807,7 @@ function App() {
         return { ...nextState, screen: 'battle', pendingBossVictory: true };
       }
 
-      return advanceAfterCurrentNode(nextState, nextTeam);
+      return { ...nextState, screen: 'battle' };
     });
   }
 
@@ -692,16 +831,16 @@ function App() {
   }
 
   function buyCharacter(template: CharacterTemplate) {
-    if (!run.team.some((member) => member.templateId === template.id) && run.gold >= template.price) {
-      playSfx('buy');
-    }
+    let didBuy = false;
 
     setRun((previous) => {
+      const offerStillAvailable = previous.shopOffers.some((offer) => offer.id === template.id);
       const alreadyOwned = previous.team.some((member) => member.templateId === template.id);
-      if (alreadyOwned || previous.gold < template.price) {
+      if (previous.screen !== 'shop' || !offerStillAvailable || alreadyOwned || previous.team.length >= 4 || previous.gold < template.price) {
         return previous;
       }
 
+      didBuy = true;
       return {
         ...previous,
         gold: previous.gold - template.price,
@@ -709,6 +848,10 @@ function App() {
         shopOffers: previous.shopOffers.filter((offer) => offer.id !== template.id),
       };
     });
+
+    if (didBuy) {
+      playSfx('buy');
+    }
   }
 
   function healCharacter(id: string, healType: HealType) {
@@ -799,6 +942,7 @@ function App() {
 
   return (
     <div className={`app-shell game-shell ${sceneClass} ${run.screen === 'map' ? 'map-hud-shell' : ''} ${run.screen === 'battle' ? 'battle-shell' : ''}`}>
+      <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
       <header className="topbar">
         <div>
           <p className="eyebrow">非商用个人 Beta</p>
@@ -891,6 +1035,7 @@ function App() {
               title="失败"
               body="所有伙伴都进入重伤状态。下一局可以更早休息或招募。"
               log={run.battle?.log ?? []}
+              enemies={run.battle?.enemies ?? []}
               stats={run.battle?.stats}
               team={run.team}
               onRestart={resetRun}
@@ -938,18 +1083,26 @@ function StartScreen({ onStart }: { onStart: () => void }) {
       <div className="start-copy">
         <p className="eyebrow">LoveLive Roguelike Beta</p>
         <h1>开始巡演</h1>
-        <p>选择初始偶像，规划路线，撑过三层Boss战。</p>
-        <button className="primary-button start-button" onClick={onStart}>
-          开始游戏
-        </button>
+        <p>选择初始偶像，规划成长路线，挑战三层巡演Boss！</p>
+        <ul className="start-feature-list" aria-label="巡演目标">
+          <li><span>♪</span>选择你的偶像</li>
+          <li><span>★</span>打造独一无二的演出队伍</li>
+          <li><span>♛</span>挑战三层巡演Boss</li>
+        </ul>
       </div>
+      <button className="school-gate-start" type="button" onClick={onStart} aria-label="开始巡演">
+        <span className="school-gate-name">私立虹咲学园</span>
+        <strong>开始巡演</strong>
+        <small>点击校门，开启巡演之旅</small>
+      </button>
     </main>
   );
 }
 
-function BondMemberPopover({ memberIds, ownedIds }: { memberIds: string[]; ownedIds: Set<string> }) {
+function BondMemberPopover({ memberIds, ownedIds, summary }: { memberIds: string[]; ownedIds: Set<string>; summary?: string }) {
   return (
     <div className="bond-member-popover">
+      {summary && <p>{summary}</p>}
       {memberIds.map((memberId) => {
         const member = getTemplateById(memberId);
         if (!member) {
@@ -1005,13 +1158,14 @@ interface BondTagProps {
   label: string;
   memberIds: string[];
   ownedIds: Set<string>;
+  summary?: string;
 }
 
-function BondTag({ className = '', label, memberIds, ownedIds }: BondTagProps) {
+function BondTag({ className = '', label, memberIds, ownedIds, summary }: BondTagProps) {
   return (
     <div className={`group-tag bond-tag ${className}`.trim()}>
       <span>{label}</span>
-      <BondMemberPopover memberIds={memberIds} ownedIds={ownedIds} />
+      <BondMemberPopover memberIds={memberIds} ownedIds={ownedIds} summary={summary} />
     </div>
   );
 }
@@ -1191,21 +1345,27 @@ function DraftCandidateCard({ template, selected, onClick }: DraftCandidateCardP
       </div>
       <div className="draft-card-body">
         <div className="card-tags">
-          {primaryBond ? (
-            <BondTag label={GROUP_LABELS[template.group]} memberIds={primaryBond.memberIds} ownedIds={tagOwnedIds} />
-          ) : (
-            <span className="group-tag">{GROUP_LABELS[template.group]}</span>
-          )}
-          {secondaryBonds.map((bond) => (
-            <BondTag
-              className="secondary-bond-tag"
-              key={bond.id}
-              label={bond.name}
-              memberIds={bond.memberIds}
-              ownedIds={tagOwnedIds}
-            />
-          ))}
-          <span className={`rarity-tag rarity-${template.rarity}`}>{RARITY_LABELS[template.rarity]}</span>
+          <div className="card-tag-row bond-row">
+            {primaryBond ? (
+              <BondTag label={GROUP_LABELS[template.group]} memberIds={primaryBond.memberIds} ownedIds={tagOwnedIds} summary={groupDetail(template.group)} />
+            ) : (
+              <InfoPill className="group-tag" label={GROUP_LABELS[template.group]} tooltip={groupDetail(template.group)} />
+            )}
+            {secondaryBonds.map((bond) => (
+              <BondTag
+                className="secondary-bond-tag"
+                key={bond.id}
+                label={bond.name}
+                memberIds={bond.memberIds}
+                ownedIds={tagOwnedIds}
+                summary={bond.description}
+              />
+            ))}
+          </div>
+          <div className="card-tag-row meta-row">
+            <InfoPill className={`rarity-tag rarity-${template.rarity}`} label={RARITY_LABELS[template.rarity]} tooltip={rarityDetail(template.rarity)} />
+            {template.role && <InfoPill className="group-tag" label={ROLE_LABELS[template.role]} tooltip={roleDetail(template.role)} />}
+          </div>
         </div>
         <h3>{template.name}</h3>
         <div className="draft-stats" aria-label={`${template.name}数值`}>
@@ -1225,13 +1385,14 @@ function DraftCandidateCard({ template, selected, onClick }: DraftCandidateCardP
         {template.passive && (
           <div className="draft-ability">
             <span>被动</span>
-            <p>被动「{template.passive.name}」：{template.passive.description}</p>
+            <p><HighlightText text={`被动「${template.passive.name}」：${template.passive.description}`} /></p>
           </div>
         )}
-        <div className="draft-ability">
+        <div className="draft-ability skill-preview-trigger" tabIndex={0}>
           <span>技能</span>
-          <p>技能「{template.skill.name}」：{template.skill.description}</p>
+          <p><HighlightText text={`技能「${template.skill.name}」：${template.skill.description}`} /></p>
         </div>
+        <UpgradePreview template={template} />
         <em>{selected ? '已选择' : '点击选择'}</em>
       </div>
     </button>
@@ -1261,39 +1422,87 @@ function hpPercent(character: Pick<Character, 'hp' | 'maxHp'>) {
 function BattleUnitCard({ character, defeated = false }: { character: Character; defeated?: boolean }) {
   return (
     <div className={`battle-unit-card rarity-${character.rarity} ${defeated || character.hp <= 0 ? 'defeated' : ''}`}>
-      <Avatar character={character} label={character.name.replace('敌方', '').replace('Boss ', '').replace('精英 ', '')} />
+      <Avatar character={character} label={character.name.replace('对手 ', '').replace('敌方', '').replace('Boss ', '').replace('精英 ', '')} />
       <div className="battle-unit-copy">
         <div className="battle-unit-title">
           <strong>{character.name}</strong>
           {character.rarity !== 'enemy' && character.rarity !== 'elite' && character.rarity !== 'boss' && <UpgradeLevelBadge level={character.upgradeLevel ?? 1} />}
-          <span>{RARITY_LABELS[character.rarity]}</span>
+          <InfoPill className="battle-title-pill" label={RARITY_LABELS[character.rarity]} tooltip={rarityDetail(character.rarity)} />
+          {character.role && <InfoPill className="battle-title-pill" label={ROLE_LABELS[character.role]} tooltip={roleDetail(character.role)} />}
         </div>
         <div className="battle-hp-line">
           <b>HP {character.hp}/{character.maxHp}</b>
           <div className="battle-hp-track"><span style={{ width: hpPercent(character) }} /></div>
         </div>
         <small>攻击 {character.attack}　速度 {character.speed}</small>
-        {character.passive && <small>被动：{character.passive.description}</small>}
-        {character.skill && <small>技能：{character.skill.description}</small>}
+        {character.passive && <small><HighlightText text={`被动：${character.passive.description}`} /></small>}
+        {character.skill && <small><HighlightText text={`技能：${character.skill.description}`} /></small>}
       </div>
     </div>
   );
 }
 
 function BattleTeamPanel({ team }: { team: Character[] }) {
+  const slots = Array.from({ length: 4 }, (_, index) => team[index] ?? null);
+  const primaryBonds = getActiveBonds(team).filter((bond) => bond.count > 0);
+  const secondaryBonds = getActiveSecondaryBonds(team).filter((bond) => bond.count > 0);
+  const visibleBonds = [
+    ...primaryBonds.map((bond) => ({
+      id: bond.group.id,
+      name: bond.group.name,
+      count: bond.count,
+      total: 3,
+      description: bond.level >= 3 ? bond.group.level3Description : bond.level >= 2 ? bond.group.level2Description : bond.group.theme,
+      logoSrc: BOND_LOGO_SRC[bond.group.id],
+    })),
+    ...secondaryBonds.map((activeBond) => ({
+      id: activeBond.bond.id,
+      name: activeBond.bond.name,
+      count: activeBond.count,
+      total: 2,
+      description: activeBond.bond.description,
+      logoSrc: BOND_LOGO_SRC[activeBond.bond.id],
+    })),
+  ];
+
   return (
     <aside className="battle-left-panel">
-      <section className="battle-card-panel">
+      <section className="battle-card-panel battle-team-compact-panel">
         <h3>队伍</h3>
-        <div className="battle-team-list">
-          {team.map((member) => (
-            <CompactCharacter key={member.id} character={member} />
-          ))}
+        <div className="battle-team-avatar-grid">
+          {slots.map((member, index) =>
+            member ? (
+              <div className={`battle-mini-item rarity-${member.rarity} ${member.injured || member.hp <= 0 ? 'injured' : ''}`} key={member.id} tabIndex={0}>
+                <Avatar character={member} label={member.name} />
+                <div className="battle-mini-popover">
+                  <strong>{member.name}</strong>
+                  <span>{RARITY_LABELS[member.rarity]} · {GROUP_LABELS[member.group]}{member.role ? ` · ${ROLE_LABELS[member.role]}` : ''} · LV{member.upgradeLevel ?? 1}</span>
+                  <span>HP {member.hp}/{member.maxHp} · 攻 {member.attack} · 速 {member.speed}</span>
+                  {member.passive && <small><HighlightText text={`被动：${member.passive.description}`} /></small>}
+                  {member.skill && <small><HighlightText text={`技能：${member.skill.description}`} /></small>}
+                </div>
+              </div>
+            ) : (
+              <div className="battle-mini-empty" key={`empty-${index}`}>＋</div>
+            ),
+          )}
         </div>
-      </section>
-      <section className="battle-card-panel">
         <h3>羁绊</h3>
-        <BondPanel team={team} />
+        <div className="battle-bond-logo-grid">
+          {visibleBonds.length > 0 ? (
+            visibleBonds.map((bond) => (
+              <div className="battle-bond-logo-item" key={bond.id} tabIndex={0}>
+                <img src={bond.logoSrc} alt="" />
+                <div className="battle-mini-popover">
+                  <strong>{bond.name} {bond.count}/{bond.total}</strong>
+                  <span>{bond.description}</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="battle-bond-empty">暂无羁绊</div>
+          )}
+        </div>
       </section>
     </aside>
   );
@@ -1344,7 +1553,9 @@ function BattleScreen({ battle, boss, gold, team, pendingEnhance, pendingBossVic
   const aliveMembers = team.filter((member) => !member.injured && member.hp > 0);
   const displayEnemy = battle.enemies[Math.min(battle.activeEnemyIndex, battle.enemies.length - 1)] ?? null;
   const selectableMembers = battle.phase === 'relay' ? aliveMembers : team;
-  const selectedMembers = team.filter((member) => battle.selectedIds.includes(member.id));
+  const selectedMembers = battle.selectedIds
+    .map((id) => team.find((member) => member.id === id))
+    .filter((member): member is Character => Boolean(member));
   const battleTitle = battle.type === 'boss' ? '3v1 Boss战' : battle.type === 'elite' ? '2v1 精英战' : '1v1 普通战斗';
   const canStart = (battle.phase === 'select' || battle.phase === 'relay') && battle.selectedIds.length === battle.slots;
   const isWon = battle.phase === 'won';
@@ -1360,9 +1571,9 @@ function BattleScreen({ battle, boss, gold, team, pendingEnhance, pendingBossVic
           <p>所选角色会同时出战，敌人会攻击所有出战角色。</p>
         </div>
         <div className="battle-resource-pills">
-          <span>◎ 金币 {gold}</span>
-          <span>伙伴 {team.length}</span>
-          <span>可出战 {aliveMembers.length}</span>
+          <span data-tooltip="金币：用于商店招募、休息处治疗复活，以及部分强化费用。" tabIndex={0}>◎ 金币 {gold}</span>
+          <span data-tooltip="伙伴：当前队伍总人数，上限为4人。" tabIndex={0}>伙伴 {team.length}</span>
+          <span data-tooltip="可出战：未重伤且生命值大于0的伙伴数量。" tabIndex={0}>可出战 {aliveMembers.length}</span>
         </div>
       </header>
 
@@ -1449,9 +1660,11 @@ interface ShopScreenProps {
 
 function ShopScreen({ gold, offers, onBuy, onLeave }: ShopScreenProps) {
   const [pendingOffer, setPendingOffer] = useState<CharacterTemplate | null>(null);
+  const pendingOfferAvailable = pendingOffer ? offers.some((offer) => offer.id === pendingOffer.id) : false;
+  const canConfirmPurchase = Boolean(pendingOffer && pendingOfferAvailable && gold >= pendingOffer.price);
 
   function confirmPurchase() {
-    if (!pendingOffer) {
+    if (!pendingOffer || !canConfirmPurchase) {
       return;
     }
     onBuy(pendingOffer);
@@ -1473,7 +1686,11 @@ function ShopScreen({ gold, offers, onBuy, onLeave }: ShopScreenProps) {
               template={offer}
               footer={`${offer.price}金币`}
               disabled={gold < offer.price}
-              onClick={() => setPendingOffer(offer)}
+              onClick={() => {
+                if (gold >= offer.price) {
+                  setPendingOffer(offer);
+                }
+              }}
             />
           ))}
         </div>
@@ -1493,15 +1710,20 @@ function ShopScreen({ gold, offers, onBuy, onLeave }: ShopScreenProps) {
             <p>
               花费 {pendingOffer.price}金币招募该角色吗？购买后会立即加入队伍。
             </p>
+            {!canConfirmPurchase && (
+              <div className="empty-state shop-confirm-warning">
+                金币不足，当前无法购买。
+              </div>
+            )}
             <div className="shop-confirm-preview">
-              <TemplateCard template={pendingOffer} footer={`${pendingOffer.price}金币`} disabled />
+              <TemplateCard template={pendingOffer} footer={`${pendingOffer.price}金币`} />
             </div>
             <div className="action-row">
               <button className="secondary-button" type="button" onClick={() => setPendingOffer(null)}>
                 取消
               </button>
-              <button className="primary-button" type="button" disabled={gold < pendingOffer.price} onClick={confirmPurchase}>
-                确认购买
+              <button className="primary-button" type="button" disabled={!canConfirmPurchase} onClick={confirmPurchase}>
+                确认购买 {pendingOffer.price}金币
               </button>
             </div>
           </div>
@@ -1593,7 +1815,7 @@ function EnhanceModal({ gold, pending, team, onEnhance, onDismiss }: EnhanceModa
         <div className="action-row">
           <button className="secondary-button" onClick={onDismiss}>返回游戏</button>
           <button className="primary-button" disabled={!selected || !canPay} onClick={() => onEnhance(selected?.id ?? null)}>
-            确认强化
+            确认强化 {costLabel}
           </button>
         </div>
       </div>
@@ -1701,10 +1923,49 @@ interface EndScreenProps {
   log: string[];
   stats?: BattleStats;
   team: Character[];
+  enemies?: Character[];
   onRestart: () => void;
 }
 
-function EndScreen({ title, body, log, stats, team, onRestart }: EndScreenProps) {
+function EnemySurvivorPanel({ enemies }: { enemies: Character[] }) {
+  const survivors = enemies.filter((enemy) => enemy.hp > 0);
+  const visibleEnemies = survivors.length > 0 ? survivors : enemies;
+
+  if (visibleEnemies.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="enemy-survivor-panel">
+      <h3>对手信息</h3>
+      <div className="enemy-survivor-list">
+        {visibleEnemies.map((enemy) => (
+          <div className={`enemy-survivor-card rarity-${enemy.rarity}`} key={enemy.id}>
+            <Avatar character={enemy} label={enemy.name.replace('对手 ', '').replace('敌方', '').replace('Boss ', '').replace('精英 ', '')} />
+            <div>
+              <strong>{enemy.name}</strong>
+              <span>{RARITY_LABELS[enemy.rarity]} · HP {Math.max(0, enemy.hp)}/{enemy.maxHp}</span>
+              <div className="enemy-survivor-hp"><span style={{ width: hpPercent(enemy) }} /></div>
+              <small>攻击 {enemy.attack} · 速度 {enemy.speed}</small>
+              {(enemy.shield > 0 || enemy.poison > 0 || enemy.vulnerable > 0 || enemy.shieldGainReduced) && (
+                <small>
+                  {enemy.shield > 0 ? `护盾 ${enemy.shield} ` : ''}
+                  {enemy.poison > 0 ? `毒 ${enemy.poison} ` : ''}
+                  {enemy.vulnerable > 0 ? '易损 ' : ''}
+                  {enemy.shieldGainReduced ? '护盾削弱 ' : ''}
+                </small>
+              )}
+              {enemy.passive && <small><HighlightText text={`被动：${enemy.passive.description}`} /></small>}
+              {enemy.skill && <small><HighlightText text={`技能：${enemy.skill.description}`} /></small>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EndScreen({ title, body, log, stats, team, enemies = [], onRestart }: EndScreenProps) {
   return (
     <div className="flow-screen">
       <div className="screen-heading">
@@ -1712,6 +1973,7 @@ function EndScreen({ title, body, log, stats, team, onRestart }: EndScreenProps)
         <h2>{title}</h2>
         <p>{body}</p>
       </div>
+      <EnemySurvivorPanel enemies={enemies} />
       {stats && <DamageMeter stats={stats} team={team} title="伤害统计" />}
       {log.length > 0 && <BattleLog entries={log} stats={stats} team={team} />}
       <div className="action-row">
@@ -1753,20 +2015,26 @@ function TemplateCard({ template, selected = false, disabled = false, footer, on
       <div className="card-copy">
         <strong>{template.name}</strong>
         <div className="card-tags">
-          <span className="group-tag">{identityLabel}</span>
-          <span className={`rarity-tag rarity-${template.rarity}`}>{RARITY_LABELS[template.rarity]}</span>
+          <div className="card-tag-row bond-row">
+            <InfoPill className="group-tag" label={identityLabel} tooltip={template.enemyTier || template.eliteTier || template.bossTier ? rarityDetail(template.rarity) : groupDetail(template.group)} />
+          </div>
+          <div className="card-tag-row meta-row">
+            <InfoPill className={`rarity-tag rarity-${template.rarity}`} label={RARITY_LABELS[template.rarity]} tooltip={rarityDetail(template.rarity)} />
+            {template.role && <InfoPill className="group-tag" label={ROLE_LABELS[template.role]} tooltip={roleDetail(template.role)} />}
+          </div>
         </div>
         <span>
           HP {template.maxHp} · 攻 {template.attack} · 速 {template.speed}
         </span>
         {template.passive && (
           <small>
-            被动「{template.passive.name}」：{template.passive.description}
+            <HighlightText text={`被动「${template.passive.name}」：${template.passive.description}`} />
           </small>
         )}
-        <small>
-          技能「{template.skill.name}」：{template.skill.description}
+        <small className="skill-preview-trigger" tabIndex={0}>
+          <HighlightText text={`技能「${template.skill.name}」：${template.skill.description}`} />
         </small>
+        <UpgradePreview template={template} />
         {template.feature && <small>定位：{template.feature}</small>}
         {footer && <em>{footer}</em>}
       </div>
@@ -1801,12 +2069,17 @@ function CharacterCard({ character, selected = false, disabled = false, onClick 
       onClick={onClick}
       type="button"
     >
-      <Avatar character={character} label={character.name.replace('敌方', '').replace('Boss ', '').replace('精英 ', '')} />
+      <Avatar character={character} label={character.name.replace('对手 ', '').replace('敌方', '').replace('Boss ', '').replace('精英 ', '')} />
       <div className="card-copy">
         <strong>{character.name}</strong>
         <div className="card-tags">
-          <span className="group-tag">{identityLabel}</span>
-          <span className={`rarity-tag rarity-${character.rarity}`}>{RARITY_LABELS[character.rarity]}</span>
+          <div className="card-tag-row bond-row">
+            <InfoPill className="group-tag" label={identityLabel} tooltip={character.enemyTier || character.eliteTier || character.bossTier ? rarityDetail(character.rarity) : groupDetail(character.group)} />
+          </div>
+          <div className="card-tag-row meta-row">
+            <InfoPill className={`rarity-tag rarity-${character.rarity}`} label={RARITY_LABELS[character.rarity]} tooltip={rarityDetail(character.rarity)} />
+            {character.role && <InfoPill className="group-tag" label={ROLE_LABELS[character.role]} tooltip={roleDetail(character.role)} />}
+          </div>
         </div>
         <span>
           HP {character.hp}/{character.maxHp} · 攻 {character.attack} · 速 {character.speed}
@@ -1826,11 +2099,11 @@ function CharacterCard({ character, selected = false, disabled = false, onClick 
           <>
             {character.passive && (
               <small>
-                被动「{character.passive.name}」：{character.passive.description}
+                <HighlightText text={`被动「${character.passive.name}」：${character.passive.description}`} />
               </small>
             )}
             <small>
-              技能「{character.skill.name}」：{character.skill.description}
+              <HighlightText text={`技能「${character.skill.name}」：${character.skill.description}`} />
             </small>
           </>
         )}
@@ -1856,7 +2129,7 @@ function CompactCharacter({ character }: { character: Character }) {
           <div className="character-name-line compact">
             <strong>{character.name}</strong>
           </div>
-          <span>{RARITY_LABELS[character.rarity]} · {GROUP_LABELS[character.group]}{levelText} · {character.injured ? '重伤' : `${character.hp}/${character.maxHp} HP`}</span>
+          <span>{RARITY_LABELS[character.rarity]} · {GROUP_LABELS[character.group]}{character.role ? ` · ${ROLE_LABELS[character.role]}` : ''}{levelText} · {character.injured ? '重伤' : `${character.hp}/${character.maxHp} HP`}</span>
         </div>
         <div className="hp-track" aria-label={`${character.name}生命值`}>
           <span style={{ width: `${hpPercent}%` }} />

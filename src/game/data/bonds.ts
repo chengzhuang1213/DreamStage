@@ -4,12 +4,12 @@ export const BOND_GROUPS: BondGroup[] = [
   {
     id: 'cute',
     name: '可爱甜心',
-    theme: '暴击 / 连击 / 吸血',
+    theme: '攻击 / 暴击',
     memberIds: ['ayumu', 'rina', 'nico'],
     level2Name: '萌力扩散',
-    level2Description: '暴击率+15%。',
+    level2Description: '全队攻击+2。',
     level3Name: '世界第一偶像',
-    level3Description: '暴击时吸血50%。',
+    level3Description: '全队暴击率+15%。',
   },
   {
     id: 'silver',
@@ -27,9 +27,9 @@ export const BOND_GROUPS: BondGroup[] = [
     theme: '护盾 / 免疫 / 防御',
     memberIds: ['eli', 'mari', 'ren'],
     level2Name: '纪律委员会',
-    level2Description: '受到伤害-2。',
+    level2Description: '风纪委员受到伤害-3。',
     level3Name: '领袖风范',
-    level3Description: '开场获得20%最大生命护盾。',
+    level3Description: '风纪委员开场获得20%最大生命护盾。',
   },
   {
     id: 'mystery',
@@ -84,7 +84,7 @@ export const SECONDARY_BONDS: SecondaryBond[] = [
     id: 'full_speed',
     name: '全速模式',
     memberIds: ['you', 'rina'],
-    description: '速度+3。',
+    description: '全队速度+5。',
   },
   {
     id: 'energetic_idol',

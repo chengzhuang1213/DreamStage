@@ -18,7 +18,7 @@ export const BOSS_TEMPLATES: BossTemplate[] = [
     passive: {
       id: 'boss_honoka_growth',
       name: '永不放弃',
-      description: '每回合攻击力+2。',
+      description: '每回合攻击力+1。',
     },
     skill: {
       id: 'boss_honoka_rush',

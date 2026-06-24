@@ -41,7 +41,7 @@ function BossForecast({ boss, onOpen }: { boss: BossTemplate; onOpen: () => void
       <div className="boss-forecast-copy">
         <h3>
           <span className="boss-crown">♛</span> 本层Boss：{boss.name}
-          <span className="boss-type-pill">{boss.feature}</span>
+          <span className="boss-type-pill" data-tooltip={`Boss定位：${boss.feature}。${boss.mechanic ? `机制：${boss.mechanic}` : ''}`} tabIndex={0}>{boss.feature}</span>
         </h3>
         {boss.passive && <p>被动：{boss.passive.description}</p>}
       </div>
@@ -216,7 +216,7 @@ function TeamDock({ team, onOpenDetails }: { team: Character[]; onOpenDetails: (
 }
 
 function BondProgressDock({ team, onOpenDetails }: { team: Character[]; onOpenDetails: () => void }) {
-  const primaryBonds = getActiveBonds(team);
+  const primaryBonds = getActiveBonds(team).filter((bond) => bond.count > 0);
   const secondaryBonds = getActiveSecondaryBonds(team).filter((bond) => bond.count > 0);
   const visibleBonds = [
     ...primaryBonds.slice(0, 4).map((bond) => ({
@@ -469,8 +469,8 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
         <button className="map-back-button" type="button" aria-label={'\u8fd4\u56de'} onClick={() => setActiveModal('restart')}>{'\u2190'}</button>
         <h2>{'\u7b2c'}{boss.bossTier}{'\u5c42'}</h2>
         <div className="map-resource-row">
-          <span className="resource-pill coin">{'\u91d1\u5e01 '}{gold}</span>
-          <span className="resource-pill heart">{'\u751f\u547d '}{livingHp}/{maxHp || 0}</span>
+          <span className="resource-pill coin" data-tooltip={'\u91d1\u5e01\uff1a\u7528\u4e8e\u5546\u5e97\u62db\u52df\u3001\u4f11\u606f\u5904\u6cbb\u7597\u590d\u6d3b\uff0c\u4ee5\u53ca\u90e8\u5206\u5f3a\u5316\u8d39\u7528\u3002'} tabIndex={0}>{'\u91d1\u5e01 '}{gold}</span>
+          <span className="resource-pill heart" data-tooltip={'\u751f\u547d\uff1a\u5f53\u524d\u961f\u4f0d\u5b58\u6d3b\u751f\u547d\u603b\u548c / \u961f\u4f0d\u751f\u547d\u4e0a\u9650\u603b\u548c\u3002'} tabIndex={0}>{'\u751f\u547d '}{livingHp}/{maxHp || 0}</span>
         </div>
       </header>
 

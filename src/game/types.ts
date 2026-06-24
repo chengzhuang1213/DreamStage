@@ -1,9 +1,10 @@
 export type GroupId = 'cute' | 'silver' | 'president' | 'mystery';
 export type IdolRarity = 'legendary' | 'star' | 'normal' | 'enemy' | 'elite' | 'boss';
+export type RoleId = 'tank' | 'fighter' | 'assassin' | 'support';
 export type BossTier = 1 | 2 | 3;
 export type EliteTier = BossTier;
 export type EnemyPoolId = 'weak' | 'strong';
-export type UpgradeLevel = 1 | 2 | 3;
+export type UpgradeLevel = 1 | 2 | 3 | 4 | 5;
 
 export type SecondaryBondId =
   | 'little_devil'
@@ -84,6 +85,7 @@ export interface CharacterTemplate {
   name: string;
   group: GroupId;
   rarity: IdolRarity;
+  role?: RoleId;
   maxHp: number;
   attack: number;
   speed: number;
@@ -106,6 +108,7 @@ export interface Character {
   name: string;
   group: GroupId;
   rarity: IdolRarity;
+  role?: RoleId;
   hp: number;
   maxHp: number;
   attack: number;
@@ -159,6 +162,7 @@ export interface RuntimeFlags {
   bossFirstAttackUsed?: boolean;
   encoreUsed?: boolean;
   firstDamageNegated?: boolean;
+  damageNegatedCount?: number;
   turnsTaken?: number;
   focus?: number;
   forceCritical?: boolean;
@@ -168,6 +172,12 @@ export interface RuntimeFlags {
   nextAttackMultiplier?: number;
   bossFatalGuardUsed?: boolean;
   ayumuHealBonus?: number;
+  transformed?: boolean;
+  skillUsedOnce?: boolean;
+  fightingSpirit?: number;
+  spiritOpeningGranted?: boolean;
+  mariSkillActive?: boolean;
+  dreamStacks?: number;
 }
 
 export type RuntimeState = Record<string, RuntimeFlags>;
