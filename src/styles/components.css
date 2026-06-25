@@ -730,9 +730,17 @@
 }
 
 .battle-log-retry-button {
-  border-color: rgba(255, 198, 86, 0.72);
-  background: rgba(255, 226, 127, 0.16);
-  color: #ffe27f;
+  border-color: #f2b844;
+  background: #fff1b8;
+  color: #3b2a05;
+  box-shadow: 0 8px 18px rgba(94, 67, 10, 0.22);
+}
+
+.battle-log-retry-button:hover:not(:disabled),
+.battle-log-retry-button:focus-visible {
+  border-color: #d89516;
+  background: #ffd96d;
+  color: #241800;
 }
 
 .battle-log {
