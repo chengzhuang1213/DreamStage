@@ -147,6 +147,7 @@ export interface MapNode {
   row: number;
   col: number;
   type: NodeType;
+  nextIds: string[];
   completed: boolean;
   available: boolean;
 }

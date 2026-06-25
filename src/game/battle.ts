@@ -4,6 +4,18 @@ import type { BattleEvent, BattleEventKind } from './types';
 import { HERO_BATTLE_TRANSFORM_ILLUSTRATIONS } from '../battleAssets';
 import { ROLE_DAMAGE_MULTIPLIERS, ROLE_LABELS } from './data/labels';
 
+let battleRandom: () => number = () => 0.5;
+
+export function withBattleRandom<T>(random: () => number, run: () => T): T {
+  const previousRandom = battleRandom;
+  battleRandom = random;
+  try {
+    return run();
+  } finally {
+    battleRandom = previousRandom;
+  }
+}
+
 export function getBattleSlots(type: BattleType, aliveCount: number): number {
   const desiredSlots: Record<BattleType, number> = {
     battle: 1,
@@ -572,10 +584,10 @@ function calculateDamage(
 
   if (attacker.skill.id === 'keke_charge' && flags.transformed && upgradeLevel(attacker) >= 2) {
     const multiplier = upgradeLevel(attacker) >= 5
-      ? (Math.random() < 0.1 ? 5 : 3.3)
+      ? (battleRandom() < 0.1 ? 5 : 3.3)
       : upgradeLevel(attacker) >= 4
-        ? (Math.random() < 0.1 ? 4 : 2.5)
-        : (Math.random() < 0.1 ? 3 : 1.75);
+        ? (battleRandom() < 0.1 ? 4 : 2.5)
+        : (battleRandom() < 0.1 ? 3 : 1.75);
     damage *= multiplier;
     pushCallout(`${attacker.name}发动《可可重击》，本次攻击造成${multiplier}倍伤害。`);
   }
@@ -616,7 +628,7 @@ function calculateDamage(
     criticalChance = 1;
   }
 
-  const critical = Math.random() < Math.min(1, criticalChance);
+  const critical = battleRandom() < Math.min(1, criticalChance);
   if (critical) {
     const criticalMultiplier = attacker.passive?.id === 'elite_natsumi_traffic' ? 2.5 : 2;
     damage *= criticalMultiplier;
@@ -823,7 +835,7 @@ function resolveAttack(
   }
   let kanataDreamDamage = 0;
   if (actualDamage > 0 && attacker.skill.id === 'kanata_execute' && defender.hp > 0) {
-    const dreamRate = Math.random() < (upgradeLevel(attacker) >= 5 ? 0.5 : 0.2) ? 0.2 : 0.1;
+    const dreamRate = battleRandom() < (upgradeLevel(attacker) >= 5 ? 0.5 : 0.2) ? 0.2 : 0.1;
     kanataDreamDamage = Math.max(1, Math.floor(defender.hp * dreamRate));
     defender.hp = Math.max(0, defender.hp - kanataDreamDamage);
     const text = `${attacker.name}发动《${attacker.skill.name}》，追加目标当前生命${Math.round(dreamRate * 100)}%的伤害，造成${kanataDreamDamage}点，${defender.name}剩余${defender.hp}HP。`;
@@ -957,7 +969,7 @@ function applyNozoeliTurnStart(attacker: Character, runtime: RuntimeState, log: 
     return;
   }
 
-  if (Math.random() < 0.5) {
+  if (battleRandom() < 0.5) {
     attacker.battleAttackBonus += 2;
     log.push(`${attacker.name}触发「永恒」，随机获得本场攻击力+2。`);
     return;
@@ -971,7 +983,7 @@ function drawNozomiTarotCard(flags: RuntimeFlags): 'hanged' | 'wheel' | 'magicia
   const cards: Array<'hanged' | 'wheel' | 'magician'> = flags.tarotMagicianUsedThisTurn
     ? ['hanged', 'wheel']
     : ['hanged', 'wheel', 'magician'];
-  return cards[Math.floor(Math.random() * cards.length)];
+  return cards[Math.floor(battleRandom() * cards.length)];
 }
 
 function castNozomiTarot(
@@ -1319,7 +1331,7 @@ function takeTurn(
     attacker.hp > 0 &&
     defender.hp > 0 &&
     attacker.passive?.id === 'rina_board' &&
-    Math.random() < (upgradeLevel(attacker) >= 3 ? 0.75 : 0.5)
+    battleRandom() < (upgradeLevel(attacker) >= 3 ? 0.75 : 0.5)
   ) {
     log.push(`${attacker.name}发动「${attacker.passive.name}」，追加一次攻击。`);
     resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
@@ -1407,7 +1419,7 @@ function runGroupBattle(
         break;
       }
       const livingAllies = allies.filter((ally) => ally.hp > 0);
-      const firstTarget = livingAllies[Math.floor(Math.random() * livingAllies.length)];
+      const firstTarget = livingAllies[Math.floor(battleRandom() * livingAllies.length)];
       if (firstTarget) {
         getFlags(runtime, enemy.id).openingRound = rounds === 1;
         takeTurn(enemy, firstTarget, false, team, runtime, log, stats, emit);
@@ -1470,8 +1482,8 @@ function applySecondaryVictoryEffects(team: Character[], log: string[], emit?: B
   }
 
   if (hasSecondaryBond(team, 'lucky_star')) {
-    const roll = Math.floor(Math.random() * 3);
-    const target = aliveTeam[Math.floor(Math.random() * aliveTeam.length)];
+    const roll = Math.floor(battleRandom() * 3);
+    const target = aliveTeam[Math.floor(battleRandom() * aliveTeam.length)];
     if (roll === 0) {
       rewardGold += 25;
       log.push('触发「幸运星」，额外获得25金币。');
@@ -1490,7 +1502,7 @@ function applySecondaryVictoryEffects(team: Character[], log: string[], emit?: B
         hpLeft: target.hp,
       });
     } else if (target) {
-      if (Math.random() < 0.5) {
+      if (battleRandom() < 0.5) {
         target.attack += 1;
         log.push(`触发「幸运星」，${target.name}攻击永久+1。`);
       } else {

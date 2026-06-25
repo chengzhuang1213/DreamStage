@@ -62,54 +62,46 @@ const NODE_HELP: Record<MapNode['type'], string> = {
   boss: '击败Boss前往下一层',
   question: '随机事件/机遇房',
 };
-const MAP_ROW_Y: Record<number, number> = {
-  5: 8,
-  4: 24,
-  3: 40,
-  2: 56,
-  1: 72,
-  0: 88,
-};
+function getNodeY(node: MapNode) {
+  return 90 - node.row * 9.1;
+}
 
-function getNodeX(node: MapNode) {
-  const rowSize = node.row === 5 ? 1 : node.row === 4 ? 2 : 3;
+function getNodeX(node: MapNode, nodes: MapNode[]) {
+  const rowSize = nodes.filter((candidate) => candidate.row === node.row).length;
   if (rowSize === 1) {
     return 50;
   }
   if (rowSize === 2) {
-    return node.col === 0 ? 38 : 62;
+    return node.col === 0 ? 40 : 60;
   }
   return [28, 50, 72][node.col] ?? 50;
 }
 
-function getNodePosition(node: MapNode) {
+function getNodePosition(node: MapNode, nodes: MapNode[]) {
   return {
-    x: getNodeX(node),
-    y: MAP_ROW_Y[node.row] ?? 50,
+    x: getNodeX(node, nodes),
+    y: getNodeY(node),
   };
 }
 
 function getRouteConnections(nodes: MapNode[]) {
-  const byRow = new Map<number, MapNode[]>();
-  nodes.forEach((node) => {
-    byRow.set(node.row, [...(byRow.get(node.row) ?? []), node]);
-  });
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
 
   return nodes.flatMap((fromNode) => {
     if (!fromNode.available && !fromNode.completed) {
       return [];
     }
 
-    const nextNodes = byRow.get(fromNode.row + 1) ?? [];
-    return nextNodes
-      .filter((toNode) => Math.abs(toNode.col - fromNode.col) <= 1)
+    return fromNode.nextIds
+      .map((nextId) => nodeById.get(nextId))
+      .filter((toNode): toNode is MapNode => Boolean(toNode))
       .filter((toNode) => fromNode.available || toNode.available || toNode.completed)
       .map((toNode) => ({
         id: `${fromNode.id}-${toNode.id}`,
         fromId: fromNode.id,
         toId: toNode.id,
-        from: getNodePosition(fromNode),
-        to: getNodePosition(toNode),
+        from: getNodePosition(fromNode, nodes),
+        to: getNodePosition(toNode, nodes),
         preview: fromNode.available && !fromNode.completed,
         reachable: fromNode.completed && toNode.available,
         completed: fromNode.completed && toNode.completed,
@@ -144,12 +136,12 @@ function MapRoutes({ connections, pulseNodeId }: { connections: ReturnType<typeo
   );
 }
 
-function MapCursor({ node, entering }: { node: MapNode | null; entering?: boolean }) {
+function MapCursor({ node, nodes, entering }: { node: MapNode | null; nodes: MapNode[]; entering?: boolean }) {
   if (!node) {
     return null;
   }
 
-  const position = getNodePosition(node);
+  const position = getNodePosition(node, nodes);
 
   return (
     <div
@@ -170,8 +162,10 @@ function MapNodeButton({
   entering,
   pulse,
   skipped,
+  nodes,
 }: {
   node: MapNode;
+  nodes: MapNode[];
   onEnter: (node: MapNode) => void;
   onPreview: (node: MapNode) => void;
   scrollRef?: (element: HTMLButtonElement | null) => void;
@@ -179,7 +173,7 @@ function MapNodeButton({
   pulse?: boolean;
   skipped?: boolean;
 }) {
-  const position = getNodePosition(node);
+  const position = getNodePosition(node, nodes);
   const canPreview = node.available && !node.completed;
 
   return (
@@ -611,11 +605,12 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
         </aside>
         <div className="map-board">
           <MapRoutes connections={routeConnections} pulseNodeId={pulseNodeId} />
-          <MapCursor node={cursorNode} entering={Boolean(enteringNodeId)} />
+          <MapCursor node={cursorNode} nodes={nodes} entering={Boolean(enteringNodeId)} />
           {nodes.map((node) => (
             <MapNodeButton
               key={node.id}
               node={node}
+              nodes={nodes}
               skipped={!node.completed && !node.available && node.row <= progressedPastRow}
               entering={enteringNodeId === node.id}
               pulse={pulseNodeId === node.id}

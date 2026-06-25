@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import {
   CHARACTER_POOL,
+  BATTLE_ENEMY_TEMPLATES,
+  ELITE_TEMPLATES,
   NODE_LABELS,
   applyPostNodePassives,
   type BattleStats,
@@ -10,18 +12,25 @@ import {
   type BossTemplate,
   type Character,
   type CharacterTemplate,
+  type EliteTemplate,
+  type EnemyTemplate,
   type MapNode,
   buildMap,
   completeMapNode,
   createAlly,
   createDraftCandidates,
+  createElite,
+  createEnemy,
   createEnemiesForBattle,
   createShopOffers,
+  getBattleEnemiesForTier,
   getBattleSlots,
+  getElitesForTier,
   getRandomBossForTier,
   getRewardGold,
   isBattleNode,
   resolveBattleGroup,
+  withBattleRandom,
 } from './game';
 import { MUSIC_SRC, SFX_SRC, type MusicKey, type SfxKey } from './assets';
 import { MusicToggleButton } from './components/common';
@@ -31,6 +40,7 @@ import { BattleScreen } from './pages/BattleScreen';
 import { BlessingScreen } from './pages/BlessingScreen';
 import { MapScreen } from './pages/MapScreen';
 import { RestScreen } from './pages/RestScreen';
+import { QuestionScreen } from './pages/QuestionScreen';
 import { EndScreen, ResultScreen } from './pages/ResultScreens';
 import { ShopScreen } from './pages/ShopScreen';
 import { StartScreen } from './pages/StartScreen';
@@ -42,8 +52,11 @@ import {
   SakuraLayer,
   SceneParticles,
 } from './components/sceneEffects';
+import { QUESTION_EVENTS, getGachaRarityLabel, getQuestionEvent } from './questionEvents';
+import type { SeedRng } from './rng';
+import { createRandomSeed, createSeedRng, rngPick } from './rng';
 
-type Screen = 'start' | 'draft' | 'map' | 'battle' | 'result' | 'shop' | 'rest' | 'blessing' | 'win' | 'loss';
+type Screen = 'start' | 'draft' | 'map' | 'battle' | 'result' | 'shop' | 'rest' | 'question' | 'blessing' | 'win' | 'loss';
 
 const DISABLED_CLICK_SFX = new Set<SfxKey>(['next', 'mapSelect', 'buy']);
 
@@ -92,6 +105,12 @@ interface RunState {
   pendingBossVictory: boolean;
   bossRetrySnapshot: { team: Character[]; battle: BattleState } | null;
   mapPulseNodeId: string | null;
+  questionEventId: string | null;
+  nextEnemyAttackBonus: number;
+  seenEnemyTemplateIds: string[];
+  seenEliteTemplateIds: string[];
+  runSeed: string;
+  rngState: number;
 }
 
 type HealType = 'small' | 'large';
@@ -119,16 +138,24 @@ function applyLayerBlessing(team: Character[]): Character[] {
   });
 }
 
-function createRun(): RunState {
-  const boss = getRandomBossForTier(1);
+function getInitialSeed() {
+  if (typeof window === 'undefined') {
+    return createRandomSeed();
+  }
+  return new URLSearchParams(window.location.search).get('seed')?.trim() || createRandomSeed();
+}
+
+function createRun(seed = getInitialSeed()): RunState {
+  const rng = createSeedRng(seed);
+  const boss = getRandomBossForTier(1, rng);
 
   return {
     screen: 'start',
-    candidates: createDraftCandidates(),
+    candidates: createDraftCandidates(rng),
     draftSelection: [],
     team: [],
     gold: 80,
-    map: buildMap(),
+    map: buildMap(rng),
     currentNodeId: null,
     battle: null,
     boss,
@@ -145,6 +172,12 @@ function createRun(): RunState {
     pendingBossVictory: false,
     bossRetrySnapshot: null,
     mapPulseNodeId: null,
+    questionEventId: null,
+    nextEnemyAttackBonus: 0,
+    seenEnemyTemplateIds: [],
+    seenEliteTemplateIds: [],
+    runSeed: seed,
+    rngState: rng.state,
   };
 }
 
@@ -190,6 +223,96 @@ function maxUpgradeLevel(rarity: Character['rarity'] | CharacterTemplate['rarity
   return 1;
 }
 
+function upgradeCharacterOneLevel(member: Character): Character {
+  const currentLevel = member.upgradeLevel ?? 1;
+  const nextLevel = Math.min(maxUpgradeLevel(member.rarity), currentLevel + 1) as Character['upgradeLevel'];
+  const renHpBonus = member.templateId === 'ren' && currentLevel === 1 && nextLevel >= 2 ? 20 : 0;
+  const renAttackBonus = member.templateId === 'ren' && currentLevel === 2 && nextLevel >= 3 ? 5 : 0;
+  return {
+    ...member,
+    upgradeLevel: nextLevel,
+    maxHp: member.maxHp + renHpBonus,
+    hp: member.hp + renHpBonus,
+    attack: member.attack + renAttackBonus,
+  };
+}
+
+function randomItem<T>(items: T[], rng: SeedRng): T | null {
+  return rngPick(rng, items);
+}
+
+function canUseMysteryGacha(team: Character[], gold: number) {
+  if (team.length >= 4 || gold < 110) {
+    return false;
+  }
+  const ownedIds = new Set(team.map((member) => member.templateId));
+  return CHARACTER_POOL.some((template) => !ownedIds.has(template.id));
+}
+
+function pickQuestionEvent(run: RunState, rng: SeedRng) {
+  const availableEvents = QUESTION_EVENTS.filter((event) => {
+    if (event.id === 'fortune_teller') {
+      return run.gold >= 20 && run.team.length > 0;
+    }
+    if (event.id === 'mystery_gacha') {
+      return canUseMysteryGacha(run.team, run.gold);
+    }
+    return true;
+  });
+  const candidates = availableEvents.length > 0 ? availableEvents : QUESTION_EVENTS;
+  const totalWeight = candidates.reduce((sum, event) => sum + event.weight, 0);
+  let cursor = rng.next() * totalWeight;
+  for (const event of candidates) {
+    cursor -= event.weight;
+    if (cursor <= 0) {
+      return event;
+    }
+  }
+  return candidates[0];
+}
+
+function chooseUnseenEnemyTemplate(tier: BossTier, seenIds: string[], rng: SeedRng): EnemyTemplate {
+  const seen = new Set(seenIds);
+  const tierCandidates = getBattleEnemiesForTier(tier).filter((enemy) => !seen.has(enemy.id));
+  const globalCandidates = BATTLE_ENEMY_TEMPLATES.filter((enemy) => !seen.has(enemy.id));
+  const candidates = tierCandidates.length > 0 ? tierCandidates : globalCandidates;
+  return randomItem(candidates, rng) ?? getBattleEnemiesForTier(tier)[0] ?? BATTLE_ENEMY_TEMPLATES[0];
+}
+
+function chooseUnseenEliteTemplate(tier: BossTier, seenIds: string[], rng: SeedRng): EliteTemplate {
+  const seen = new Set(seenIds);
+  const tierCandidates = getElitesForTier(tier).filter((elite) => !seen.has(elite.id));
+  const globalCandidates = ELITE_TEMPLATES.filter((elite) => !seen.has(elite.id));
+  const candidates = tierCandidates.length > 0 ? tierCandidates : globalCandidates;
+  return randomItem(candidates, rng) ?? getElitesForTier(tier)[0] ?? ELITE_TEMPLATES[0];
+}
+
+function createUniqueEnemiesForBattle(previous: RunState, battleType: BattleType, rng: SeedRng) {
+  if (battleType === 'battle') {
+    const template = chooseUnseenEnemyTemplate(previous.boss.bossTier, previous.seenEnemyTemplateIds, rng);
+    return {
+      enemies: [createEnemy(template, battleType, 0)],
+      seenEnemyTemplateIds: unique([...previous.seenEnemyTemplateIds, template.id]),
+      seenEliteTemplateIds: previous.seenEliteTemplateIds,
+    };
+  }
+
+  if (battleType === 'elite') {
+    const template = chooseUnseenEliteTemplate(previous.boss.bossTier, previous.seenEliteTemplateIds, rng);
+    return {
+      enemies: [createElite(template)],
+      seenEnemyTemplateIds: previous.seenEnemyTemplateIds,
+      seenEliteTemplateIds: unique([...previous.seenEliteTemplateIds, template.id]),
+    };
+  }
+
+  return {
+    enemies: createEnemiesForBattle(battleType, rng, previous.boss),
+    seenEnemyTemplateIds: previous.seenEnemyTemplateIds,
+    seenEliteTemplateIds: previous.seenEliteTemplateIds,
+  };
+}
+
 function shouldStartMuted() {
   if (typeof window === 'undefined') {
     return false;
@@ -212,6 +335,7 @@ function App() {
   );
 
   const aliveTeam = run.team.filter((member) => !member.injured && member.hp > 0);
+  const currentQuestionEvent = getQuestionEvent(run.questionEventId);
   const shopPreviewTeam = useMemo(() => {
     if (run.screen !== 'shop' || !shopSelectedOffer) {
       return run.team;
@@ -401,21 +525,25 @@ function App() {
     startTransitionTimeoutRef.current = window.setTimeout(() => {
       startTransitionTimeoutRef.current = null;
       setStartTransitioning(false);
+      const nextRun = createRun();
       setRun({
-        ...createRun(),
+        ...nextRun,
         screen: 'draft',
-        candidates: createDraftCandidates(),
         draftSelection: [],
       });
     }, START_TRANSITION_MS);
   }
 
   function rerollDraft() {
-    setRun((previous) => ({
-      ...previous,
-      candidates: createDraftCandidates(),
-      draftSelection: [],
-    }));
+    setRun((previous) => {
+      const rng = createSeedRng(previous.rngState);
+      return {
+        ...previous,
+        candidates: createDraftCandidates(rng),
+        draftSelection: [],
+        rngState: rng.state,
+      };
+    });
   }
 
   function toggleDraft(id: string) {
@@ -461,6 +589,7 @@ function App() {
       if (!node.available || node.completed) {
         return previous;
       }
+      const rng = createSeedRng(previous.rngState);
 
       if (isBattleNode(node.type)) {
         const aliveCount = previous.team.filter((member) => !member.injured && member.hp > 0).length;
@@ -470,7 +599,11 @@ function App() {
 
         const battleType: BattleType = node.type;
         const slots = getBattleSlots(battleType, aliveCount);
-        const enemies = createEnemiesForBattle(battleType, previous.boss);
+        const enemyAttackBonus = previous.nextEnemyAttackBonus;
+        const encounter = createUniqueEnemiesForBattle(previous, battleType, rng);
+        const enemies = encounter.enemies.map((enemy) =>
+          enemyAttackBonus > 0 ? { ...enemy, attack: enemy.attack + enemyAttackBonus } : enemy,
+        );
         const battle: BattleState = {
           nodeId: node.id,
           type: battleType,
@@ -485,6 +618,9 @@ function App() {
           runtime: {},
           stats: {},
         };
+        if (enemyAttackBonus > 0) {
+          battle.log.push(`偶像直播风险触发，本场敌人攻击+${enemyAttackBonus}。`);
+        }
 
         return {
           ...previous,
@@ -495,6 +631,10 @@ function App() {
           result: null,
           restHealUsed: false,
           restReviveUsed: false,
+          nextEnemyAttackBonus: 0,
+          rngState: rng.state,
+          seenEnemyTemplateIds: encounter.seenEnemyTemplateIds,
+          seenEliteTemplateIds: encounter.seenEliteTemplateIds,
           bossRetrySnapshot: battleType === 'boss' ? { team: previous.team.map((member) => ({ ...member })), battle: { ...battle, enemies: battle.enemies.map((enemy) => ({ ...enemy })) } } : null,
           eventLog: [...previous.eventLog, `进入${NODE_LABELS[node.type]}节点。`],
         };
@@ -502,7 +642,7 @@ function App() {
 
       if (node.type === 'shop') {
         const ownedIds = new Set(previous.team.map((member) => member.templateId));
-        const shopOffers = createShopOffers(previous.boss.bossTier, ownedIds);
+        const shopOffers = createShopOffers(previous.boss.bossTier, ownedIds, rng);
 
         return {
           ...previous,
@@ -513,6 +653,7 @@ function App() {
           result: null,
           restHealUsed: false,
           restReviveUsed: false,
+          rngState: rng.state,
           eventLog: [...previous.eventLog, `进入${NODE_LABELS[node.type]}节点。`],
         };
       }
@@ -531,15 +672,19 @@ function App() {
       }
 
       if (node.type === 'question') {
-        const clearedNodeMap = completeMapNode(previous.map, node.id);
+        const event = pickQuestionEvent(previous, rng);
         return {
           ...previous,
-          screen: 'map',
-          map: clearedNodeMap,
-          currentNodeId: null,
-          mapPulseNodeId: node.id,
+          screen: 'question',
+          map: previous.map,
+          currentNodeId: node.id,
+          mapPulseNodeId: null,
+          questionEventId: event.id,
           result: null,
-          eventLog: [...previous.eventLog, '进入机遇节点。问号房功能准备中。'],
+          rngState: rng.state,
+          restHealUsed: false,
+          restReviveUsed: false,
+          eventLog: [...previous.eventLog, `进入机遇节点：${event.title}。`],
         };
       }
 
@@ -549,7 +694,7 @@ function App() {
 
   function advanceAfterCurrentNode(previous: RunState, teamInput = previous.team): RunState {
     if (!previous.currentNodeId) {
-      return { ...previous, screen: 'map', pendingEnhance: null, enhanceReady: false, pendingBossVictory: false };
+      return { ...previous, screen: 'map', pendingEnhance: null, enhanceReady: false, pendingBossVictory: false, questionEventId: null };
     }
 
     const team = applyPostNodePassives(teamInput);
@@ -566,15 +711,17 @@ function App() {
 
     if (shouldAdvanceLayer) {
       const nextTier = (previous.boss.bossTier + 1) as BossTier;
+      const rng = createSeedRng(previous.rngState);
       return {
         ...previous,
         screen: 'blessing',
         mapPulseNodeId: null,
         team: applyLayerBlessing(team),
-        map: buildMap(),
+        map: buildMap(rng),
         currentNodeId: null,
         battle: null,
-        boss: getRandomBossForTier(nextTier),
+        boss: getRandomBossForTier(nextTier, rng),
+        rngState: rng.state,
         result: null,
         shopOffers: [],
         restHealUsed: false,
@@ -582,6 +729,7 @@ function App() {
         pendingEnhance: null,
         enhanceReady: false,
         pendingBossVictory: false,
+        questionEventId: null,
         bossRetrySnapshot: null,
         eventLog: [...previous.eventLog, ...completionLog, `进入第${nextTier}层。`],
       };
@@ -602,12 +750,193 @@ function App() {
       pendingEnhance: null,
       enhanceReady: false,
       pendingBossVictory: false,
+      questionEventId: null,
       bossRetrySnapshot: null,
       eventLog: [...previous.eventLog, ...completionLog],
     };
   }
   function finishCurrentNode() {
     setRun((previous) => advanceAfterCurrentNode(previous));
+  }
+
+  function resolveQuestionEvent(optionId: string, targetId?: string) {
+    setRun((previous) => {
+      if (previous.screen !== 'question' || !previous.currentNodeId || !previous.questionEventId) {
+        return previous;
+      }
+
+      const event = getQuestionEvent(previous.questionEventId);
+      const rng = createSeedRng(previous.rngState);
+      let team = previous.team;
+      let gold = previous.gold;
+      let nextEnemyAttackBonus = previous.nextEnemyAttackBonus;
+      const eventLog: string[] = [`机遇「${event.title}」：${event.options.find((option) => option.id === optionId)?.label ?? '确认'}。`];
+
+      if (event.id === 'encounter_enemy' || event.id === 'encounter_elite') {
+        const aliveCount = previous.team.filter((member) => !member.injured && member.hp > 0).length;
+        if (aliveCount === 0) {
+          return { ...previous, screen: 'loss' };
+        }
+
+        const battleType: BattleType = event.id === 'encounter_elite' ? 'elite' : 'battle';
+        const slots = getBattleSlots(battleType, aliveCount);
+        const enemyAttackBonus = previous.nextEnemyAttackBonus;
+        const encounter = createUniqueEnemiesForBattle(previous, battleType, rng);
+        const enemies = encounter.enemies.map((enemy) =>
+          enemyAttackBonus > 0 ? { ...enemy, attack: enemy.attack + enemyAttackBonus } : enemy,
+        );
+        const battle: BattleState = {
+          nodeId: previous.currentNodeId,
+          type: battleType,
+          enemies,
+          activeEnemyIndex: 0,
+          selectedIds: [],
+          slots,
+          phase: 'select',
+          rewardGold: getRewardGold(battleType, enemies),
+          log: [
+            `机遇「${event.title}」转入${NODE_LABELS[battleType]}。`,
+            ...(enemyAttackBonus > 0 ? [`偶像直播风险触发，本场敌人攻击+${enemyAttackBonus}。`] : []),
+          ],
+          events: [],
+          runtime: {},
+          stats: {},
+        };
+
+        return {
+          ...previous,
+          screen: 'battle',
+          battle,
+          result: null,
+          questionEventId: null,
+          restHealUsed: false,
+          restReviveUsed: false,
+          nextEnemyAttackBonus: 0,
+          rngState: rng.state,
+          seenEnemyTemplateIds: encounter.seenEnemyTemplateIds,
+          seenEliteTemplateIds: encounter.seenEliteTemplateIds,
+          eventLog: [
+            ...previous.eventLog,
+            `机遇「${event.title}」触发${NODE_LABELS[battleType]}。`,
+            ...(enemyAttackBonus > 0 ? [`偶像直播风险触发：本场敌人攻击+${enemyAttackBonus}。`] : []),
+          ],
+        };
+      }
+
+      if (event.id === 'lucky_fans') {
+        gold += 40;
+        eventLog.push('获得40金币。');
+      }
+
+      if (event.id === 'free_show') {
+        team = team.map((member) =>
+          member.injured ? member : { ...member, hp: Math.min(member.maxHp, member.hp + 15) },
+        );
+        eventLog.push('全队回复15HP。');
+      }
+
+      if (event.id === 'training') {
+        const target = randomItem(team.filter((member) => (member.upgradeLevel ?? 1) < maxUpgradeLevel(member.rarity)), rng);
+        if (target) {
+          team = team.map((member) => member.id === target.id ? upgradeCharacterOneLevel(member) : member);
+          eventLog.push(`${target.name}升级1级。`);
+        } else {
+          gold += 30;
+          eventLog.push('没有可升级角色，转化为30金币。');
+        }
+      }
+
+      if (event.id === 'extreme_training') {
+        team = team.map((member) => {
+          const nextHp = Math.max(0, member.hp - 10);
+          return {
+            ...member,
+            hp: nextHp,
+            injured: member.injured || nextHp <= 0,
+            attack: member.attack + 1,
+          };
+        });
+        eventLog.push('全队失去10HP，全队攻击永久+1。');
+      }
+
+      if (event.id === 'idol_stream') {
+        gold += 100;
+        nextEnemyAttackBonus += 2;
+        eventLog.push('获得100金币。下一场敌人攻击+2。');
+      }
+
+      if (event.id === 'school_festival') {
+        const target = team.find((member) => member.id === targetId);
+        if (!target) {
+          return previous;
+        }
+        team = team.map((member) => member.id === target.id ? { ...member, attack: member.attack + 1 } : member);
+        eventLog.push(`${target.name}攻击永久+1。`);
+      }
+
+      if (event.id === 'fortune_teller') {
+        const target = team.find((member) => member.id === targetId);
+        if (!target || gold < 20) {
+          return previous;
+        }
+        gold -= 20;
+        team = team.map((member) =>
+          member.id === target.id ? { ...member, maxHp: member.maxHp + 5, hp: member.hp + 5 } : member,
+        );
+        eventLog.push(`花费20金币，${target.name}生命上限+5。`);
+      }
+
+      if (event.id === 'student_council' && optionId === 'follow_rules') {
+        const paid = Math.min(20, gold);
+        gold -= paid;
+        eventLog.push(`遵守规定，失去${paid}金币。`);
+      }
+
+      if (event.id === 'student_council' && optionId === 'sneak_away') {
+        if (rng.next() < 0.5) {
+          const target = randomItem(team, rng);
+          if (target) {
+            team = team.map((member) => member.id === target.id ? { ...member, attack: member.attack + 2 } : member);
+            eventLog.push(`偷偷溜走成功，${target.name}攻击永久+2。`);
+          }
+        } else {
+          eventLog.push('偷偷溜走，没有发生额外效果。');
+        }
+      }
+
+      if (event.id === 'mystery_gacha') {
+        if (gold < 110 || team.length >= 4) {
+          return previous;
+        }
+        const ownedIds = new Set(team.map((member) => member.templateId));
+        const available = CHARACTER_POOL.filter((template) => !ownedIds.has(template.id));
+        if (available.length === 0) {
+          return previous;
+        }
+        gold -= 110;
+        const rarityRoll = rng.next();
+        const preferredRarity = rarityRoll < 0.1 ? 'legendary' : rarityRoll < 0.35 ? 'star' : 'normal';
+        const template = randomItem(available.filter((candidate) => candidate.rarity === preferredRarity), rng) ?? randomItem(available, rng);
+        if (!template) {
+          return previous;
+        }
+        team = [...team, createAlly(template)];
+        eventLog.push(`抽卡获得${getGachaRarityLabel(template)}色角色：${template.name}。`);
+      }
+
+      return advanceAfterCurrentNode(
+        {
+          ...previous,
+          gold,
+          team,
+          nextEnemyAttackBonus,
+          rngState: rng.state,
+          questionEventId: null,
+          eventLog: [...previous.eventLog, ...eventLog],
+        },
+        team,
+      );
+    });
   }
 
   function closeBattleStatsModal() {
@@ -701,10 +1030,14 @@ function App() {
         return previous;
       }
 
-      const { team, battle } = resolveBattleGroup(
-        previous.team,
-        previous.battle,
-        previous.battle.selectedIds,
+      const rng = createSeedRng(previous.rngState);
+      const { team, battle } = withBattleRandom(
+        () => rng.next(),
+        () => resolveBattleGroup(
+          previous.team,
+          previous.battle!,
+          previous.battle!.selectedIds,
+        ),
       );
 
       if (battle.phase === 'won') {
@@ -729,6 +1062,7 @@ function App() {
           battle,
           result,
           runStats,
+          rngState: rng.state,
           battleStatsOpen: false,
           screen: 'battle',
           pendingEnhance: canEnhance
@@ -743,6 +1077,7 @@ function App() {
           ...previous,
           team,
           battle,
+          rngState: rng.state,
           battleStatsOpen: false,
           enhanceReady: false,
           screen: 'battle',
@@ -753,6 +1088,7 @@ function App() {
         ...previous,
         team,
         battle,
+        rngState: rng.state,
         screen: 'battle',
       };
     });
@@ -969,7 +1305,7 @@ function App() {
       ? 'scene-draft-shop'
       : run.screen === 'map'
         ? 'scene-map'
-        : run.screen === 'rest' || run.screen === 'blessing'
+        : run.screen === 'rest' || run.screen === 'question' || run.screen === 'blessing'
           ? 'scene-rest-blessing'
           : 'scene-home';
   const particleVariant = run.screen === 'battle' && run.battle
@@ -982,14 +1318,14 @@ function App() {
       ? 'draft-shop'
       : run.screen === 'map'
         ? 'map'
-        : run.screen === 'rest'
+        : run.screen === 'rest' || run.screen === 'question'
           ? 'rest'
           : run.screen === 'blessing'
             ? 'blessing'
             : null;
 
   return (
-    <div className={`app-shell game-shell ${sceneClass} ${run.screen === 'map' ? 'map-hud-shell' : ''} ${run.screen === 'battle' ? 'battle-shell' : ''} ${run.screen === 'shop' ? 'shop-shell' : ''} ${run.screen === 'rest' ? 'rest-shell' : ''}`} onPointerDownCapture={handleShellPointerDown}>
+    <div className={`app-shell game-shell ${sceneClass} ${run.screen === 'map' ? 'map-hud-shell' : ''} ${run.screen === 'battle' ? 'battle-shell' : ''} ${run.screen === 'shop' ? 'shop-shell' : ''} ${run.screen === 'rest' || run.screen === 'question' ? 'rest-shell' : ''}`} onPointerDownCapture={handleShellPointerDown}>
       {particleVariant && <SceneParticles variant={particleVariant} />}
       <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
       {run.screen !== 'shop' && (
@@ -1002,6 +1338,7 @@ function App() {
             <span className={goldPulse ? 'resource-pulse' : ''}>金币 {run.gold}</span>
             <span>伙伴 {run.team.length}</span>
             <span>可出战 {aliveTeam.length}</span>
+            <span title={`Seed: ${run.runSeed}`}>Seed {run.runSeed}</span>
           </div>
         </header>
       )}
@@ -1056,6 +1393,16 @@ function App() {
               onHeal={healCharacter}
               onRevive={reviveCharacter}
               onLeave={finishCurrentNode}
+            />
+          )}
+
+          {run.screen === 'question' && (
+            <QuestionScreen
+              event={currentQuestionEvent}
+              gold={run.gold}
+              team={run.team}
+              canUseGacha={canUseMysteryGacha(run.team, run.gold)}
+              onResolve={resolveQuestionEvent}
             />
           )}
 

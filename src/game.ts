@@ -6,6 +6,8 @@ import { BATTLE_ENEMY_TEMPLATES, STRONG_ENEMY_TEMPLATES, WEAK_ENEMY_TEMPLATES } 
 import { ELITE_TEMPLATES } from './game/data/elites';
 import { GROUP_LABELS, NODE_LABELS, RARITY_LABELS, ROLE_DAMAGE_MULTIPLIERS, ROLE_LABELS, REWARD_GOLD } from './game/data/labels';
 import { hasSecondaryBond } from './game/bonds';
+import type { SeedRng } from './rng';
+import { rngInt, rngPick, rngSample, rngShuffle } from './rng';
 
 export type { GroupId, IdolRarity, RoleId, BossTier, EliteTier, EnemyPoolId, UpgradeLevel, SecondaryBondId, PassiveId, SkillId, Ability, CharacterTemplate, Character, NodeType, BattleType, MapNode, RuntimeFlags, RuntimeState, BattlePhase, CharacterBattleStats, BattleStats, BattleUnitSnapshot, BattleEventKind, BattleEvent, BattleState, BondGroup, ActiveBond, BossTemplate, EliteTemplate, EnemyTemplate, SecondaryBond, ActiveSecondaryBond } from './game/types';
 export { BOND_GROUPS, SECONDARY_BONDS } from './game/data/bonds';
@@ -15,24 +17,24 @@ export { BATTLE_ENEMY_TEMPLATES, STRONG_ENEMY_TEMPLATES, WEAK_ENEMY_TEMPLATES } 
 export { ELITE_TEMPLATES } from './game/data/elites';
 export { GROUP_LABELS, NODE_LABELS, RARITY_LABELS, ROLE_DAMAGE_MULTIPLIERS, ROLE_LABELS, REWARD_GOLD } from './game/data/labels';
 export { getActiveBonds, getActiveSecondaryBonds, hasBond, hasSecondaryBond } from './game/bonds';
-export { copyCharacter, getBattleSlots, resolveBattleGroup, resolveBattleSegment } from './game/battle';
+export { copyCharacter, getBattleSlots, resolveBattleGroup, resolveBattleSegment, withBattleRandom } from './game/battle';
 
 export function getBossesForTier(tier: BossTier): BossTemplate[] {
   return BOSS_TEMPLATES.filter((boss) => boss.bossTier === tier);
 }
 
-export function getRandomBossForTier(tier: BossTier): BossTemplate {
+export function getRandomBossForTier(tier: BossTier, rng: SeedRng): BossTemplate {
   const candidates = getBossesForTier(tier);
-  return candidates[Math.floor(Math.random() * candidates.length)] ?? BOSS_TEMPLATES[0];
+  return rngPick(rng, candidates) ?? BOSS_TEMPLATES[0];
 }
 
 export function getElitesForTier(tier: EliteTier): EliteTemplate[] {
   return ELITE_TEMPLATES.filter((elite) => elite.eliteTier === tier);
 }
 
-export function getRandomEliteForTier(tier: EliteTier): EliteTemplate {
+export function getRandomEliteForTier(tier: EliteTier, rng: SeedRng): EliteTemplate {
   const candidates = getElitesForTier(tier);
-  return candidates[Math.floor(Math.random() * candidates.length)] ?? ELITE_TEMPLATES[0];
+  return rngPick(rng, candidates) ?? ELITE_TEMPLATES[0];
 }
 
 export function getBattleEnemiesForTier(tier: BossTier): EnemyTemplate[] {
@@ -47,9 +49,9 @@ export function getBattleEnemiesForTier(tier: BossTier): EnemyTemplate[] {
   return STRONG_ENEMY_TEMPLATES;
 }
 
-export function getRandomBattleEnemyForTier(tier: BossTier): EnemyTemplate {
+export function getRandomBattleEnemyForTier(tier: BossTier, rng: SeedRng): EnemyTemplate {
   const candidates = getBattleEnemiesForTier(tier);
-  return candidates[Math.floor(Math.random() * candidates.length)] ?? WEAK_ENEMY_TEMPLATES[0];
+  return rngPick(rng, candidates) ?? WEAK_ENEMY_TEMPLATES[0];
 }
 
 const STRONG_ENEMY_IDS = new Set(STRONG_ENEMY_TEMPLATES.map((enemy) => enemy.id));
@@ -62,17 +64,12 @@ export function getRewardGold(type: BattleType, enemies: Character[] = []): numb
   return enemies.some((enemy) => STRONG_ENEMY_IDS.has(enemy.templateId)) ? 12 : REWARD_GOLD.battle;
 }
 
-export function shuffle<T>(items: T[]): T[] {
-  const copy = [...items];
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
-  }
-  return copy;
+export function shuffle<T>(items: T[], rng: SeedRng): T[] {
+  return rngShuffle(rng, items);
 }
 
-export function sample<T>(items: T[], count: number): T[] {
-  return shuffle(items).slice(0, count);
+export function sample<T>(items: T[], count: number, rng: SeedRng): T[] {
+  return rngSample(rng, items, count);
 }
 
 type RecruitableRarity = Extract<IdolRarity, 'normal' | 'star' | 'legendary'>;
@@ -88,16 +85,18 @@ const SHOP_RARITY_WEIGHTS: Record<BossTier, Record<RecruitableRarity, number>> =
 function sampleByRarity(
   rarity: RecruitableRarity,
   selectedIds: Set<string>,
+  rng: SeedRng,
   pool: CharacterTemplate[] = CHARACTER_POOL,
 ): CharacterTemplate | null {
   const candidates = pool.filter((character) => character.rarity === rarity && !selectedIds.has(character.id));
-  return sample(candidates, 1)[0] ?? null;
+  return sample(candidates, 1, rng)[0] ?? null;
 }
 
 function weightedRandomRarity(
   weights: Record<RecruitableRarity, number>,
   selectedIds: Set<string>,
   pool: CharacterTemplate[],
+  rng: SeedRng,
 ): RecruitableRarity | null {
   const availableWeights = RECRUITABLE_RARITIES
     .map((rarity) => {
@@ -111,7 +110,7 @@ function weightedRandomRarity(
     return null;
   }
 
-  let roll = Math.random() * totalWeight;
+  let roll = rng.next() * totalWeight;
   for (const entry of availableWeights) {
     roll -= entry.weight;
     if (roll < 0) {
@@ -125,47 +124,49 @@ function weightedRandomRarity(
 function fillDraftCandidates(
   required: CharacterTemplate[],
   fillPool: CharacterTemplate[],
+  rng: SeedRng,
   count = 3,
 ): CharacterTemplate[] {
   const selectedIds = new Set(required.map((character) => character.id));
   const fillers = sample(
     fillPool.filter((character) => !selectedIds.has(character.id)),
     Math.max(0, count - required.length),
+    rng,
   );
 
-  return shuffle([...required, ...fillers]);
+  return shuffle([...required, ...fillers], rng);
 }
 
-export function createDraftCandidates(): CharacterTemplate[] {
+export function createDraftCandidates(rng: SeedRng): CharacterTemplate[] {
   const legendary = CHARACTER_POOL.filter((character) => character.rarity === 'legendary');
   const nonLegendary = CHARACTER_POOL.filter((character) => character.rarity !== 'legendary');
-  const roll = Math.random();
+  const roll = rng.next();
 
   if (roll < 0.01) {
-    return fillDraftCandidates(sample(legendary, 3), nonLegendary);
+    return fillDraftCandidates(sample(legendary, 3, rng), nonLegendary, rng);
   }
 
   if (roll < 0.06) {
-    return fillDraftCandidates(sample(legendary, 2), nonLegendary);
+    return fillDraftCandidates(sample(legendary, 2, rng), nonLegendary, rng);
   }
 
   if (roll < 0.16) {
-    return fillDraftCandidates(sample(legendary, 1), nonLegendary);
+    return fillDraftCandidates(sample(legendary, 1, rng), nonLegendary, rng);
   }
 
-  return fillDraftCandidates([], nonLegendary);
+  return fillDraftCandidates([], nonLegendary, rng);
 }
 
-export function createShopOffers(tier: BossTier, ownedIds: Set<string>, count = 3): CharacterTemplate[] {
+export function createShopOffers(tier: BossTier, ownedIds: Set<string>, rng: SeedRng, count = 3): CharacterTemplate[] {
   const availableOffers = CHARACTER_POOL.filter((character) => !ownedIds.has(character.id));
   const weights = SHOP_RARITY_WEIGHTS[tier];
   const selectedIds = new Set<string>();
   const offers: CharacterTemplate[] = [];
 
   while (offers.length < count && selectedIds.size < availableOffers.length) {
-    const rarity = weightedRandomRarity(weights, selectedIds, availableOffers);
-    const offer = rarity ? sampleByRarity(rarity, selectedIds, availableOffers) : null;
-    const fallback = offer ?? sample(availableOffers.filter((character) => !selectedIds.has(character.id)), 1)[0];
+    const rarity = weightedRandomRarity(weights, selectedIds, availableOffers, rng);
+    const offer = rarity ? sampleByRarity(rarity, selectedIds, rng, availableOffers) : null;
+    const fallback = offer ?? sample(availableOffers.filter((character) => !selectedIds.has(character.id)), 1, rng)[0];
 
     if (!fallback) {
       break;
@@ -225,75 +226,129 @@ export function createAlly(template: CharacterTemplate): Character {
 }
 
 export function createEnemy(template: EnemyTemplate, type: BattleType, index: number): Character {
-  return createCharacter(template, `enemy-${template.id}-${type}-${index}-${Math.random().toString(36).slice(2, 7)}`, {
+  return createCharacter(template, `enemy-${template.id}-${type}-${index}`, {
     name: `对手 ${template.name}`,
     price: 0,
   });
 }
 
-export function createElite(template: EliteTemplate = getRandomEliteForTier(1)): Character {
-  return createCharacter(template, `elite-${template.id}-${Math.random().toString(36).slice(2, 7)}`, {
+export function createElite(template: EliteTemplate): Character {
+  return createCharacter(template, `elite-${template.id}`, {
     name: `精英 ${template.name}`,
     price: 0,
   });
 }
 
-export function createBoss(template: BossTemplate = getRandomBossForTier(1)): Character {
-  return createCharacter(template, `boss-${template.id}-${Math.random().toString(36).slice(2, 7)}`, {
+export function createBoss(template: BossTemplate): Character {
+  return createCharacter(template, `boss-${template.id}`, {
     name: `Boss ${template.name}`,
     price: 0,
   });
 }
 
-export function createEnemiesForBattle(type: BattleType, boss?: BossTemplate): Character[] {
+export function createEnemiesForBattle(type: BattleType, rng: SeedRng, boss?: BossTemplate): Character[] {
   if (type === 'boss') {
-    return [createBoss(boss)];
+    return [createBoss(boss ?? getRandomBossForTier(1, rng))];
   }
 
   if (type === 'elite') {
-    return [createElite(getRandomEliteForTier(boss?.bossTier ?? 1))];
+    return [createElite(getRandomEliteForTier(boss?.bossTier ?? 1, rng))];
   }
 
-  return [getRandomBattleEnemyForTier(boss?.bossTier ?? 1)].map((template, index) =>
+  return [getRandomBattleEnemyForTier(boss?.bossTier ?? 1, rng)].map((template, index) =>
     createEnemy(template, type, index),
   );
 }
 
-export function buildMap(): MapNode[] {
-  const rowSizes = [3, 3, 3, 3, 2, 1];
-  const nodeTypes = shuffle<NodeType>([
-    'battle',
-    'battle',
-    'shop',
-    'battle',
-    'elite',
-    'battle',
-    'battle',
-    'shop',
-    'elite',
-    'battle',
-    'battle',
-    'elite',
-  ]);
+export function buildMap(rng: SeedRng): MapNode[] {
+  const rowSizes = [
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 1, 2),
+    1,
+  ];
 
-  const nodes: MapNode[] = [];
-  let typeIndex = 0;
-  rowSizes.forEach((size, row) => {
-    for (let col = 0; col < size; col += 1) {
-      const isBossRow = row === rowSizes.length - 1;
-      const isPreBossRow = row === rowSizes.length - 2;
-      nodes.push({
-        id: `node-${row}-${col}`,
-        row,
-        col,
-        type: isBossRow ? 'boss' : isPreBossRow ? 'rest' : nodeTypes[typeIndex++],
-        completed: false,
-        available: row === 0,
-      });
+  const rows: MapNode[][] = rowSizes.map((size, row) =>
+    Array.from({ length: size }, (_, col) => ({
+      id: `node-${row}-${col}`,
+      row,
+      col,
+      type: row === 9 ? 'boss' : row === 8 ? 'rest' : 'battle',
+      nextIds: [],
+      completed: false,
+      available: row === 0,
+    })),
+  );
+
+  const allNodes = rows.flat();
+  const fillableNodes = allNodes.filter((node) => node.row >= 1 && node.row <= 7);
+  const eliteNodes = allNodes.filter((node) => node.row >= 4 && node.row <= 7);
+  const usedNodeIds = new Set<string>();
+
+  function placeType(type: NodeType, candidates: MapNode[]) {
+    const available = candidates.filter((node) => !usedNodeIds.has(node.id));
+    const target = rngPick(rng, available);
+    if (!target) {
+      return;
     }
+    target.type = type;
+    usedNodeIds.add(target.id);
+  }
+
+  placeType('question', fillableNodes);
+  placeType('question', fillableNodes);
+  placeType('shop', fillableNodes);
+  placeType('elite', eliteNodes);
+  placeType('elite', eliteNodes);
+
+  fillableNodes.forEach((node) => {
+    if (usedNodeIds.has(node.id)) {
+      return;
+    }
+    const allowedTypes: NodeType[] = node.row >= 4
+      ? ['battle', 'battle', 'battle', 'question', 'shop', 'elite']
+      : ['battle', 'battle', 'battle', 'question', 'shop'];
+    node.type = rngPick(rng, allowedTypes) ?? 'battle';
   });
 
-  return nodes;
+  for (let row = 0; row < rows.length - 1; row += 1) {
+    const currentRow = rows[row];
+    const nextRow = rows[row + 1];
+    const inboundIds = new Set<string>();
+
+    currentRow.forEach((fromNode) => {
+      const closeNodes = nextRow
+        .filter((toNode) => Math.abs(toNode.col - fromNode.col) <= 1)
+        .sort((left, right) => Math.abs(left.col - fromNode.col) - Math.abs(right.col - fromNode.col));
+      const candidates = closeNodes.length > 0 ? closeNodes : nextRow;
+      const connectCount = Math.min(candidates.length, rngInt(rng, 1, Math.min(2, candidates.length)));
+      const targets = rngSample(rng, candidates, connectCount);
+      fromNode.nextIds = targets.map((target) => target.id);
+      targets.forEach((target) => inboundIds.add(target.id));
+    });
+
+    nextRow.forEach((toNode) => {
+      if (inboundIds.has(toNode.id)) {
+        return;
+      }
+      const fromCandidates = currentRow
+        .filter((fromNode) => Math.abs(fromNode.col - toNode.col) <= 1)
+        .sort((left, right) => Math.abs(left.col - toNode.col) - Math.abs(right.col - toNode.col));
+      const fromNode = rngPick(rng, fromCandidates.length > 0 ? fromCandidates : currentRow);
+      if (!fromNode) {
+        return;
+      }
+      fromNode.nextIds = Array.from(new Set([...fromNode.nextIds, toNode.id]));
+    });
+  }
+
+  return allNodes;
 }
 
 export function completeMapNode(nodes: MapNode[], nodeId: string): MapNode[] {
@@ -302,17 +357,7 @@ export function completeMapNode(nodes: MapNode[], nodeId: string): MapNode[] {
     return nodes;
   }
 
-  const nextRow = completedNode.row + 1;
-  const nextRowNodes = nodes.filter((node) => node.row === nextRow);
-  const nextAvailableIds = new Set(
-    nextRowNodes
-      .filter((node) => Math.abs(node.col - completedNode.col) <= 1)
-      .map((node) => node.id),
-  );
-
-  if (nextRowNodes.length > 0 && nextAvailableIds.size === 0) {
-    nextRowNodes.forEach((node) => nextAvailableIds.add(node.id));
-  }
+  const nextAvailableIds = new Set(completedNode.nextIds);
 
   return nodes.map((node) => ({
     ...node,
