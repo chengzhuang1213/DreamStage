@@ -27,15 +27,17 @@ export interface MapScreenProps {
   musicMuted: boolean;
   onToggleMusic: () => void;
   onEnter: (node: MapNode) => void;
+  onOpenTeamScene: () => void;
   onOpenStats: () => void;
   eventLog: string[];
   onRestart: () => void;
+  onClose?: () => void;
   pulseNodeId?: string | null;
 }
 
 type MapModal = 'team' | 'bonds' | 'boss' | 'events' | 'restart' | null;
 
-export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: _musicMuted, onToggleMusic: _onToggleMusic, onEnter, onOpenStats, eventLog, onRestart, pulseNodeId }: MapScreenProps) {
+export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: _musicMuted, onToggleMusic: _onToggleMusic, onEnter, onOpenTeamScene, onOpenStats, eventLog, onRestart, onClose, pulseNodeId }: MapScreenProps) {
   const routeConnections = useMemo(() => getRouteConnections(nodes), [nodes]);
   const [activeModal, setActiveModal] = useState<MapModal>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -133,7 +135,7 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
   return (
     <div className={`map-hud-screen ${enteringNodeId ? 'route-entering' : ''}`}>
       <header className="map-hud-topbar">
-        <button className="map-back-button" type="button" aria-label={'\u8fd4\u56de'} onClick={() => setActiveModal('restart')}>{'\u2190'}</button>
+        <button className="map-back-button" type="button" aria-label={'\u8fd4\u56de'} onClick={onClose ?? (() => setActiveModal('restart'))}>{'\u2190'}</button>
         <h2>{'\u7b2c'}{boss.bossTier}{'\u5c42'}</h2>
         <span aria-hidden="true" />
       </header>
@@ -163,7 +165,7 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
           ))}
         </div>
         <aside className="map-right-rail">
-          <MapActions onOpenStats={onOpenStats} onOpenEvents={() => setActiveModal('events')} />
+          <MapActions onOpenTeamScene={onOpenTeamScene} onOpenStats={onOpenStats} onOpenEvents={() => setActiveModal('events')} />
           <MapLegend expanded={legendExpanded} onToggle={() => setLegendExpanded((expanded) => !expanded)} />
           <div className="map-rail-gold">
             <span className={`resource-pill coin ${goldPulse ? 'resource-pulse' : ''}`} data-tooltip={'\u91d1\u5e01\uff1a\u7528\u4e8e\u5546\u5e97\u62db\u52df\u3001\u4f11\u606f\u5904\u6cbb\u7597\u590d\u6d3b\uff0c\u4ee5\u53ca\u90e8\u5206\u5f3a\u5316\u8d39\u7528\u3002'} tabIndex={0}>{'\u91d1\u5e01 '}{gold}</span>
@@ -198,7 +200,7 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
           actions={(
             <>
               <button className="secondary-button" type="button" onClick={() => setActiveModal(null)}>{'\u7ee7\u7eed\u5de1\u6f14'}</button>
-              <button className="primary-button" type="button" onClick={onRestart}>{'\u8fd4\u56de\u6807\u9898'}</button>
+              <button className="danger-button" type="button" onClick={onRestart}>{'\u8fd4\u56de\u6807\u9898'}</button>
             </>
           )}
         >

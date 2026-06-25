@@ -74,6 +74,11 @@ export function ShopScreen({ gold, offers, team, selectedOffer, onSelectOffer, o
   return (
     <div className="flow-screen shop-screen">
       <div className="shop-header">
+        <div className="shop-title-block">
+          <p className="eyebrow">DreamStage Tour</p>
+          <h2>招募伙伴</h2>
+          <p>选择一位伙伴加入队伍，开启新的巡演之旅！</p>
+        </div>
         <div className="shop-resource-bar">
           <div className={`shop-resource-pill gold-pill ${goldPulse ? 'resource-pulse' : ''}`}>
             <span>◎</span>
@@ -82,34 +87,33 @@ export function ShopScreen({ gold, offers, team, selectedOffer, onSelectOffer, o
         </div>
       </div>
 
-      <div className="shop-recruit-panel">
-        <div className="shop-title-block">
-          <h2>✦ 招募伙伴 ✦</h2>
-          <p>招募新伙伴加入队伍，开启新的巡演之旅！</p>
+      <div className="shop-main-stage">
+        <ShopRunPreview team={team} />
+        <div className="shop-recruit-panel">
+          <div className="shop-note">每次商店可招募 1 位伙伴。购买后会加入当前队伍。</div>
+          {offers.length > 0 ? (
+            <div className="shop-offer-grid">
+              {offers.map((offer) => (
+                <ShopOfferCard
+                  key={offer.id}
+                  template={offer}
+                  selected={selectedOffer?.id === offer.id}
+                  unaffordable={gold < offer.price}
+                  onClick={() => {
+                    onSelectOffer(offer);
+                    setReplaceMemberId(null);
+                    if (isMobileShop) {
+                      setPendingOffer(offer);
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">当前可招募角色已经全部加入队伍。</div>
+          )}
         </div>
-      {offers.length > 0 ? (
-        <div className="shop-offer-grid">
-          {offers.map((offer) => (
-            <ShopOfferCard
-              key={offer.id}
-              template={offer}
-              selected={selectedOffer?.id === offer.id}
-              unaffordable={gold < offer.price}
-              onClick={() => {
-                onSelectOffer(offer);
-                setReplaceMemberId(null);
-                if (isMobileShop) {
-                  setPendingOffer(offer);
-                }
-              }}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">当前可招募角色已经全部加入队伍。</div>
-      )}
       </div>
-      <ShopRunPreview team={team} />
       <div className="shop-bottom-actions">
         {selectedOffer && (
           <button
@@ -235,6 +239,8 @@ function ShopRunPreview({ team }: { team: Character[] }) {
 }
 
 function ShopOfferCard({ template, selected, unaffordable, onClick }: { template: CharacterTemplate; selected?: boolean; unaffordable?: boolean; onClick?: () => void }) {
+  const upgradeLines = getUpgradeEffectLines(template.id, 1).slice(0, 1);
+
   return (
     <button className={`shop-offer-card rarity-${template.rarity} ${selected ? 'selected' : ''} ${unaffordable ? 'unaffordable' : ''}`} onClick={onClick} type="button">
       <div className="shop-offer-portrait">
@@ -247,11 +253,17 @@ function ShopOfferCard({ template, selected, unaffordable, onClick }: { template
         />
       </div>
       <div className="shop-offer-body">
+        <span className="shop-rarity-mark">{RARITY_LABELS[template.rarity]}</span>
         <h3>{template.name}</h3>
         <div className="shop-offer-stats">
           <span>HP <strong>{template.maxHp}</strong></span>
           <span>攻 <strong>{template.attack}</strong></span>
           <span>速 <strong>{template.speed}</strong></span>
+        </div>
+        <div className="shop-offer-skill">
+          <strong>{template.passive ? `被动技能｜${template.passive.name}` : `主动技能｜${template.skill.name}`}</strong>
+          <p>{template.passive ? template.passive.description : template.skill.description}</p>
+          {upgradeLines.length > 0 && <small>{upgradeLines.join('；')}</small>}
         </div>
       </div>
       <div className="shop-price-button">

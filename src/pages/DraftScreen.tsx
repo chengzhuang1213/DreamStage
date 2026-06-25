@@ -12,7 +12,7 @@ import {
 import { BOND_LOGO_SRC, DRAFT_IMAGE_BY_ID } from '../assets';
 import { BondItem, BondTag } from '../components/bonds';
 import { groupDetail, InfoPill, rarityDetail, roleDetail } from '../components/info';
-import { getCompactAbilityDescription, UpgradePreview } from '../game/data/upgrades';
+import { getCompactAbilityDescription, getUpgradeEffectLines } from '../game/data/upgrades';
 
 function draftImageSrc(template: CharacterTemplate) {
   return DRAFT_IMAGE_BY_ID[template.id] ?? template.avatar;
@@ -85,17 +85,19 @@ export function DraftScreen({ candidates, selectedIds, onToggle, onReroll, onCon
           </button>
         </div>
       </div>
-      <div className="draft-grid">
-        {visibleCandidates.map((candidate) => (
-          <DraftCandidateCard
-            key={candidate.id}
-            template={candidate}
-            selected={selectedIds.includes(candidate.id)}
-            onClick={() => handleCandidateClick(candidate)}
-          />
-        ))}
+      <div className="draft-stage">
+        <DraftBondPreview selectedCharacters={selectedCandidates} />
+        <div className="draft-grid">
+          {visibleCandidates.map((candidate) => (
+            <DraftCandidateCard
+              key={candidate.id}
+              template={candidate}
+              selected={selectedIds.includes(candidate.id)}
+              onClick={() => handleCandidateClick(candidate)}
+            />
+          ))}
+        </div>
       </div>
-      <DraftBondPreview selectedCharacters={selectedCandidates} />
       {detailCandidate && (
         <DraftCandidateDetailModal
           selected={selectedIds.includes(detailCandidate.id)}
@@ -114,10 +116,11 @@ function DraftBondPreview({ selectedCharacters }: { selectedCharacters: Characte
   const secondaryBonds = getActiveSecondaryBonds(selectedCharacters);
 
   return (
-    <section className="draft-bonds">
+    <section className={`draft-bonds ${selectedCharacters.length > 0 ? 'has-selection' : ''}`}>
       <div className="draft-bonds-heading">
         <p className="eyebrow">羁绊说明</p>
-        <h3>主羁绊与次羁绊</h3>
+        <h3>{selectedCharacters.length > 0 ? '已选成员羁绊' : '选择成员后显示'}</h3>
+        {selectedCharacters.length === 0 && <span>左侧会展示本次开局候选的详细羁绊进度。</span>}
       </div>
       <div className="draft-bond-grid">
         {bonds.map((bond) => (
@@ -152,8 +155,24 @@ function DraftBondPreview({ selectedCharacters }: { selectedCharacters: Characte
             total={2}
           />
         ))}
+        {selectedCharacters.length > 0 && bonds.length === 0 && secondaryBonds.length === 0 && (
+          <div className="draft-bond-empty">当前选择尚未形成可追踪羁绊。</div>
+        )}
       </div>
     </section>
+  );
+}
+
+function DraftDetailInfo({ template }: { template: CharacterTemplate }) {
+  const upgradeLines = getUpgradeEffectLines(template.id, 1).slice(0, 2);
+
+  return (
+    <div className="draft-detail-info">
+      <span>详细信息</span>
+      {template.passive && <p>被动「{template.passive.name}」：{getCompactAbilityDescription(template.passive.description)}</p>}
+      <p>技能「{template.skill.name}」：{getCompactAbilityDescription(template.skill.description)}</p>
+      {upgradeLines.length > 0 && <small>成长：{upgradeLines.join('；')}</small>}
+    </div>
   );
 }
 
@@ -223,20 +242,7 @@ function DraftCandidateCard({ template, selected, onClick }: DraftCandidateCardP
             速度
           </span>
         </div>
-        {template.passive && (
-          <>
-          <div className="draft-ability skill-preview-trigger" tabIndex={0}>
-            <span>被动</span>
-            <p>{`被动「${template.passive.name}」：${getCompactAbilityDescription(template.passive.description)}`}</p>
-          </div>
-          <UpgradePreview template={template} />
-          </>
-        )}
-        <div className="draft-ability skill-preview-trigger" tabIndex={0}>
-          <span>技能</span>
-          <p>{`技能「${template.skill.name}」：${getCompactAbilityDescription(template.skill.description)}`}</p>
-        </div>
-        <UpgradePreview template={template} />
+        <DraftDetailInfo template={template} />
         <em>{selected ? '已选择' : '点击选择'}</em>
       </div>
     </button>
@@ -297,7 +303,10 @@ function DraftCandidateDetailModal({ template, selected, onClose, onConfirm }: {
           <span>技能</span>
           <p>{`技能「${template.skill.name}」：${template.skill.description}`}</p>
         </div>
-        <UpgradePreview template={template} />
+        <div className="draft-modal-upgrades">
+          <strong>升级效果</strong>
+          {getUpgradeEffectLines(template.id, 1).map((line) => <small key={line}>{line}</small>)}
+        </div>
         <div className="draft-detail-actions">
           <button className="secondary-button" type="button" onClick={onClose}>返回</button>
           <button className="primary-button" type="button" onClick={onConfirm}>{selected ? '取消选择' : '确认选择'}</button>

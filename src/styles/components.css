@@ -1642,22 +1642,6 @@
   grid-column: 2 / -1;
 }
 
-.question-result-preview {
-  display: grid;
-  gap: 4px;
-  margin-bottom: 18px;
-  border: 1px solid rgba(240, 184, 61, 0.38);
-  border-radius: 14px;
-  background: rgba(255, 248, 220, 0.72);
-  padding: 14px 16px;
-  color: #394762;
-  font-weight: 850;
-}
-
-.question-result-preview strong {
-  color: #6d4306;
-}
-
 .question-actions {
   display: flex;
   justify-content: flex-end;

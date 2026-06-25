@@ -260,7 +260,10 @@ export interface BattleEvent {
   actorName?: string;
   targetName?: string;
   amount?: number;
+  hpDamage?: number;
   shieldBlocked?: number;
+  shieldBroken?: boolean;
+  critical?: boolean;
   hpLeft?: number;
   units: BattleUnitSnapshot[];
 }

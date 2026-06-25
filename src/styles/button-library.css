@@ -1,0 +1,218 @@
+.primary-button,
+.secondary-button,
+.ghost-button,
+.danger-button {
+  position: relative;
+  isolation: isolate;
+  min-height: 54px;
+  border: 0 !important;
+  border-radius: 999px;
+  background-color: transparent !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+  box-shadow: none !important;
+  font-weight: 1000;
+  letter-spacing: 0;
+  line-height: 1.1;
+  padding: 13px 34px 15px;
+  transition: filter 180ms ease, transform 180ms ease;
+}
+
+.primary-button {
+  background-image: url('/ui/buttons/button-primary.png') !important;
+  color: #fff9ff !important;
+  text-shadow: 0 2px 0 rgba(75, 22, 106, 0.45), 0 0 14px rgba(255, 157, 241, 0.72);
+}
+
+.secondary-button,
+.ghost-button {
+  background-image: url('/ui/buttons/button-secondary.png') !important;
+  color: #3c255d !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.86), 0 0 12px rgba(151, 104, 255, 0.24);
+}
+
+.danger-button {
+  background-image: url('/ui/buttons/button-danger.png') !important;
+  color: #fff8fb !important;
+  text-shadow: 0 2px 0 rgba(104, 15, 56, 0.5), 0 0 16px rgba(255, 134, 205, 0.62);
+}
+
+.primary-button:hover:not(:disabled),
+.secondary-button:hover:not(:disabled),
+.ghost-button:hover:not(:disabled),
+.danger-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08) saturate(1.05);
+}
+
+.primary-button:active:not(:disabled),
+.secondary-button:active:not(:disabled),
+.ghost-button:active:not(:disabled),
+.danger-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  filter: brightness(0.96);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.ghost-button:disabled,
+.danger-button:disabled {
+  background-image: url('/ui/buttons/button-disabled.png') !important;
+  color: rgba(70, 58, 91, 0.68) !important;
+  cursor: not-allowed;
+  filter: grayscale(0.1);
+  opacity: 0.82;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.58);
+  transform: none;
+}
+
+.action-row .primary-button,
+.action-row .secondary-button,
+.action-row .ghost-button,
+.action-row .danger-button,
+.reward-modal-actions .primary-button,
+.reward-modal-actions .secondary-button,
+.reward-modal-actions .ghost-button,
+.reward-modal-actions .danger-button,
+.map-modal-actions .primary-button,
+.map-modal-actions .secondary-button,
+.map-modal-actions .ghost-button,
+.map-modal-actions .danger-button,
+.team-scene-tour-panel .primary-button,
+.team-scene-tour-panel .secondary-button,
+.team-scene-tour-panel .ghost-button,
+.team-scene-tour-panel .danger-button {
+  min-width: 220px;
+}
+
+.battle-header-start-button,
+.battle-start-button,
+.battle-prepare-start-button,
+.shop-buy-button,
+.shop-leave-button,
+.rest-leave-button,
+.team-scene-map-button {
+  min-height: 58px;
+}
+
+.battle-log-heading .ghost-button,
+.battle-log-heading .secondary-button,
+.battle-log-heading .danger-button,
+.map-detail-modal .ghost-button,
+.map-detail-modal .secondary-button {
+  min-height: 46px;
+  padding: 10px 26px 12px;
+}
+
+.map-actions button,
+.codex-button,
+.stats-settings-button,
+.hud-wide-button {
+  border: 0 !important;
+  border-radius: 999px;
+  background: url('/ui/buttons/button-secondary-wide.png') center / 100% 100% no-repeat !important;
+  box-shadow: none !important;
+  color: #3c255d !important;
+  font-weight: 1000;
+  letter-spacing: 0;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.map-actions button:hover,
+.codex-button:hover,
+.stats-settings-button:hover,
+.hud-wide-button:hover {
+  filter: brightness(1.06);
+}
+
+.music-toggle,
+.settings-button,
+.map-back-button,
+.icon-button {
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background-color: transparent !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  box-shadow: none !important;
+  color: transparent !important;
+  overflow: hidden;
+  padding: 0 !important;
+  text-indent: -999px;
+}
+
+.music-toggle {
+  background-image: url('/ui/buttons/icon-sound.png') !important;
+}
+
+.music-toggle.is-muted {
+  background-image: url('/ui/buttons/icon-sound-disabled.png') !important;
+}
+
+.settings-button {
+  background-image: url('/ui/buttons/icon-settings.png') !important;
+}
+
+.map-back-button {
+  background-image: url('/ui/buttons/icon-back.png') !important;
+}
+
+.music-toggle svg,
+.settings-button svg,
+.map-back-button svg,
+.icon-button svg {
+  opacity: 0;
+}
+
+.music-toggle:hover,
+.settings-button:hover,
+.map-back-button:hover,
+.icon-button:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.music-toggle:active,
+.settings-button:active,
+.map-back-button:active,
+.icon-button:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.resource-pill.coin::before,
+.team-scene-resources .coin::before,
+.shop-resource-pill span:first-child::before {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  margin-right: 6px;
+  vertical-align: -6px;
+  content: '';
+  background: url('/ui/buttons/icon-coin.png') center / contain no-repeat;
+}
+
+@media (max-width: 720px) {
+  .primary-button,
+  .secondary-button,
+  .ghost-button,
+  .danger-button {
+    min-height: 48px;
+    padding: 11px 24px 13px;
+  }
+
+  .music-toggle,
+  .settings-button,
+  .map-back-button,
+  .icon-button {
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px !important;
+    min-height: 50px !important;
+  }
+}

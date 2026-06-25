@@ -25,6 +25,10 @@ export function hpPercent(character: Pick<Character, 'hp' | 'maxHp'>) {
   return `${Math.max(0, Math.min(100, Math.round((character.hp / character.maxHp) * 100)))}%`;
 }
 
+function shieldPercent(character: Pick<Character, 'shield' | 'maxHp'>) {
+  return `${Math.max(0, Math.min(100, Math.round((character.shield / character.maxHp) * 100)))}%`;
+}
+
 export function enemyThemeClass(character: Character) {
   if (character.rarity === 'elite') {
     return 'enemy-theme-elite';
@@ -38,13 +42,28 @@ export function enemyThemeClass(character: Character) {
 }
 
 function battleFloatLabel(character: Character, replayEvent: ReplayEvent | null | undefined) {
-  const amount = getReplayTargetAmount(character, replayEvent);
+  if (!isReplayTarget(character, replayEvent)) {
+    return null;
+  }
+
+  const amount = replayEvent?.hpDamagesByTarget?.[character.id] ?? replayEvent?.hpDamage ?? getReplayTargetAmount(character, replayEvent);
+  const shieldBlocked = replayEvent?.shieldBlockedByTarget?.[character.id] ?? replayEvent?.shieldBlocked ?? 0;
+  if (
+    (replayEvent?.kind === 'attack' || replayEvent?.kind === 'damage') &&
+    !amount &&
+    shieldBlocked > 0
+  ) {
+    return `护盾 -${shieldBlocked}`;
+  }
+
   if (!amount) {
     return null;
   }
 
   if (replayEvent?.kind === 'attack' || replayEvent?.kind === 'damage') {
-    return `-${amount}`;
+    return shieldBlocked > 0
+      ? `-${amount}  护盾-${shieldBlocked}`
+      : `-${amount}`;
   }
 
   if (replayEvent?.kind === 'heal') {
@@ -75,6 +94,11 @@ function battleCalloutLabel(character: Character, replayEvent: ReplayEvent | nul
   const bossLineMatch = replayEvent.text.match(/^(?:Boss台词：)?.+?「(.+?)」$/);
   if (character.rarity === 'boss' && bossLineMatch && !/(?:发动|触发|消耗)/.test(replayEvent.text)) {
     return bossLineMatch[1];
+  }
+
+  const tarotDrawMatch = replayEvent.text.match(/抽到「(倒吊人|命运之轮|魔术师)」/);
+  if (character.templateId === 'nozomi' && tarotDrawMatch) {
+    return tarotDrawMatch[1];
   }
 
   const calloutMatch = replayEvent.text.match(/(?:发动|触发|消耗)[「《](.+?)[」》]/);
@@ -188,6 +212,14 @@ function passiveIntroLabel(character: Character, replayEvent: ReplayEvent | null
 export function BattleStandee({ character, replayEvent, side, defeated = false }: { character: Character; replayEvent?: ReplayEvent | null; side: 'enemy' | 'ally'; defeated?: boolean }) {
   const isActing = replayEvent?.actorName ? nameMatches(character, replayEvent.actorName) : false;
   const isTarget = isReplayTarget(character, replayEvent);
+  const isAttackEvent = replayEvent?.kind === 'attack';
+  const isAttackActor = isAttackEvent && isActing;
+  const isCriticalTarget = replayEvent?.criticalTargetIds
+    ? replayEvent.criticalTargetIds.includes(character.id)
+    : Boolean(replayEvent?.critical && isTarget);
+  const shieldBroken = replayEvent?.shieldBrokenTargetIds
+    ? replayEvent.shieldBrokenTargetIds.includes(character.id)
+    : Boolean(replayEvent?.shieldBroken && isTarget);
   const floatLabel = battleFloatLabel(character, replayEvent);
   const calloutLabel = battleCalloutLabel(character, replayEvent) ?? passiveIntroLabel(character, replayEvent);
   const legendarySkinScale: Record<string, number> = {
@@ -196,7 +228,13 @@ export function BattleStandee({ character, replayEvent, side, defeated = false }
     mari: 0.7,
     kanata: 0.72,
   };
-  const enemyScale = character.rarity === 'boss' ? 1.02 : character.rarity === 'elite' ? 0.92 : 0.86;
+  const enemyScale = character.templateId === 'boss_hanabi'
+    ? 0.9
+    : character.rarity === 'boss'
+      ? 1.02
+      : character.rarity === 'elite'
+        ? 0.92
+        : 0.86;
   const scale = side === 'enemy'
     ? enemyScale
     : legendarySkinScale[character.templateId] ?? 1.28;
@@ -206,15 +244,56 @@ export function BattleStandee({ character, replayEvent, side, defeated = false }
 
   return (
     <div
-      className={`battle-standee battle-standee-${side} rarity-${character.rarity} ${side === 'enemy' ? enemyThemeClass(character) : ''} ${defeated ? 'defeated' : ''} ${isActing ? 'is-acting' : ''} ${isTarget ? `is-${replayEvent?.kind}` : ''}`.trim()}
+      className={`battle-standee battle-standee-${side} rarity-${character.rarity} ${side === 'enemy' ? enemyThemeClass(character) : ''} ${defeated ? 'defeated' : ''} ${isActing ? 'is-acting' : ''} ${isAttackActor ? 'is-attack-actor' : ''} ${isCriticalTarget ? 'is-critical-target' : ''} ${isTarget ? `is-${replayEvent?.kind}` : ''}`.trim()}
       style={{ '--standee-scale': scale, '--callout-bottom': calloutBottom } as CSSProperties}
     >
-      {floatLabel && <span className={`battle-float-text float-${replayEvent?.kind}`} key={`${replayEvent?.text}-${character.id}-${floatLabel}`}>{floatLabel}</span>}
+      {floatLabel && (
+        <span
+          className={`battle-float-text float-${replayEvent?.kind} ${isCriticalTarget ? 'float-critical' : ''}`}
+          key={`${replayEvent?.id ?? replayEvent?.text}-${character.id}-${floatLabel}`}
+        >
+          {isCriticalTarget && <small>暴击</small>}
+          {floatLabel}
+        </span>
+      )}
       {calloutLabel && <span className="battle-skill-callout" key={`${replayEvent?.text}-${character.id}-callout`}>{calloutLabel}</span>}
+      {isCriticalTarget && (
+        <span
+          className="battle-critical-burst"
+          key={`${replayEvent?.id ?? replayEvent?.text}-${character.id}-critical-burst`}
+          aria-hidden="true"
+        />
+      )}
+      {isTarget && replayEvent?.kind === 'shield' && (
+        <img
+          className="battle-shield-gain-effect"
+          key={`${replayEvent.id ?? replayEvent.text}-${character.id}-shield-effect`}
+          src="/effects/shield-gain.png"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
+      )}
+      {shieldBroken && (
+        <img
+          className="battle-shield-break-effect"
+          key={`${replayEvent?.id ?? replayEvent?.text}-${character.id}-shield-break-effect`}
+          src="/effects/shield-break.png"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
+      )}
       <img src={getBattleIllustration(character)} alt="" draggable={false} />
       <div className="battle-standee-name">
         <strong>{character.name.replace('对手 ', '').replace('敌方', '').replace('Boss ', '').replace('精英 ', '')}</strong>
         <span>{character.hp}/{character.maxHp}</span>
+        {character.shield > 0 && (
+          <div className="battle-standee-shield">
+            <b>护盾 {character.shield}</b>
+            <span aria-hidden="true"><i style={{ width: shieldPercent(character) }} /></span>
+          </div>
+        )}
         <div className="battle-standee-hp" aria-hidden="true">
           <i style={{ width: hpPercent(character) }} />
         </div>
@@ -243,6 +322,14 @@ export function BattleUnitCard({ character, defeated = false, replayEvent }: { c
           <b>HP {character.hp}/{character.maxHp}</b>
           <div className="battle-hp-track"><span style={{ width: hpPercent(character) }} /></div>
         </div>
+        {character.shield > 0 && (
+          <div className="battle-shield-line">
+            <b>护盾 {character.shield}</b>
+            <div className="battle-shield-track" aria-hidden="true">
+              <span style={{ width: shieldPercent(character) }} />
+            </div>
+          </div>
+        )}
         <small>攻击 {character.attack}　速度 {character.speed}</small>
         {character.passive && <small><HighlightText text={`被动：${character.passive.description}`} /></small>}
         {character.skill && <small><HighlightText text={`技能：${character.skill.description}`} /></small>}
@@ -340,7 +427,10 @@ export function BattleSlotStrip({ selectedMembers, slots, replayEvent }: { selec
               <Avatar character={member} label={member.name} />
               <div className="battle-slot-copy">
                 <strong>{member.name}</strong>
-                <span>HP {member.hp}/{member.maxHp} · 攻 {member.attack} · 速 {member.speed}</span>
+                <span>
+                  HP {member.hp}/{member.maxHp} · 攻 {member.attack} · 速 {member.speed}
+                  {member.shield > 0 && <b className="battle-slot-shield"> · 护盾 {member.shield}</b>}
+                </span>
                 <div className="battle-slot-hp-track" aria-hidden="true">
                   <i style={{ width: hpPercent(member) }} />
                 </div>

@@ -696,6 +696,17 @@
   line-height: 1;
 }
 
+.map-actions .map-team-scene-button {
+  border-color: rgba(255, 130, 206, 0.48);
+  background:
+    linear-gradient(135deg, rgba(255, 130, 206, 0.34), rgba(117, 88, 214, 0.32)),
+    rgba(20, 38, 70, 0.54);
+}
+
+.map-actions .map-team-scene-button span {
+  color: #ff82ce;
+}
+
 .map-detail-modal {
   width: min(720px, calc(100vw - 32px));
 }

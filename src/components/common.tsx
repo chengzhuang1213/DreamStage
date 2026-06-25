@@ -18,7 +18,7 @@ export function UpgradeLevelBadge({ level }: { level: number }) {
 
 export function MusicToggleButton({ muted, onToggle, className = '' }: { muted: boolean; onToggle: () => void; className?: string }) {
   return (
-    <button className={`music-toggle ${className}`.trim()} type="button" onClick={onToggle} aria-label={muted ? '开启声音' : '关闭声音'} title={muted ? '开启声音' : '关闭声音'}>
+    <button className={`music-toggle ${muted ? 'is-muted' : ''} ${className}`.trim()} type="button" onClick={onToggle} aria-label={muted ? '开启声音' : '关闭声音'} title={muted ? '开启声音' : '关闭声音'}>
       <svg aria-hidden="true" viewBox="0 0 24 24">
         <path d="M4 9v6h4l5 4V5L8 9H4z" />
         {muted ? (

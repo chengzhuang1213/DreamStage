@@ -75,9 +75,12 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
     : [];
   const canContinueRoute = isWon && !isBossWon && !isFinalBossWon && !pendingEnhance && !hasPendingEnhance && replayDone;
   const replayNotifiedKey = useRef('');
+  const startLaunchTimerRef = useRef<number | null>(null);
+  const [startLaunching, setStartLaunching] = useState(false);
   const snapshotUnits = currentReplayEvent?.units;
   const displayEnemyWithSnapshot = displayEnemy ? applySnapshot(displayEnemy, snapshotUnits) : null;
   const selectedMembersWithSnapshot = selectedMembers.map((member) => applySnapshot(member, snapshotUnits));
+  const isPreparing = battle.phase === 'select' || battle.phase === 'relay';
   const liveStats = useMemo(
     () => buildReplayStats(team, replayEvents, replayStepForRender, battle.stats, replayDone),
     [battle.stats, replayDone, replayEvents, replayStepForRender, team],
@@ -99,6 +102,32 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
   }, [battle.nodeId]);
 
   useEffect(() => {
+    setStartLaunching(false);
+    if (startLaunchTimerRef.current !== null) {
+      window.clearTimeout(startLaunchTimerRef.current);
+      startLaunchTimerRef.current = null;
+    }
+  }, [battle.nodeId, battle.phase]);
+
+  useEffect(() => () => {
+    if (startLaunchTimerRef.current !== null) {
+      window.clearTimeout(startLaunchTimerRef.current);
+    }
+  }, []);
+
+  function handleStartBattle() {
+    if (!canStart || startLaunching) {
+      return;
+    }
+
+    setStartLaunching(true);
+    startLaunchTimerRef.current = window.setTimeout(() => {
+      startLaunchTimerRef.current = null;
+      onStart();
+    }, 560);
+  }
+
+  useEffect(() => {
     replayKeyRef.current = replayKey;
     setReplayStep(0);
   }, [replayKey]);
@@ -109,7 +138,13 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
     }
 
     const isBossLine = currentReplayEvent?.bossLine;
-    const delay = isBossLine ? 2000 : currentReplayEvent?.kind === 'round' ? 540 : 980;
+    const delay = isBossLine
+      ? 2000
+      : currentReplayEvent?.kind === 'round'
+        ? 540
+        : currentReplayEvent?.kind === 'attack'
+          ? 900
+          : 980;
     const timer = window.setTimeout(() => {
       setReplayStep((step) => Math.min(step + 1, replayEvents.length - 1));
     }, delay);
@@ -129,7 +164,7 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
   }, [battle.phase, battle.type, canNotifyReplayDone, onReplayDone, replayDone, replayKey]);
 
   return (
-    <div className="battle-hud-screen">
+    <div className={`battle-hud-screen ${isPreparing ? 'is-preparing' : ''} ${startLaunching ? 'is-launching' : ''}`.trim()}>
       <header className="battle-hud-header">
         <div>
           <p className="eyebrow">{NODE_LABELS[battle.type]}</p>
@@ -160,6 +195,7 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
             <div className="battle-arena-enemy">
               {displayEnemyWithSnapshot && (
                 <BattleStandee
+                  key={`${displayEnemyWithSnapshot.id}-${replayStepForRender}`}
                   character={displayEnemyWithSnapshot}
                   defeated={replayEnabled ? defeatedNames.some((name) => nameMatches(displayEnemyWithSnapshot, name)) : displayEnemyWithSnapshot.hp <= 0}
                   replayEvent={currentReplayEvent}
@@ -170,7 +206,7 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
             <div className="battle-arena-allies" style={{ '--fighter-count': Math.max(1, selectedMembersWithSnapshot.length) } as CSSProperties}>
               {selectedMembersWithSnapshot.length > 0 ? selectedMembersWithSnapshot.map((member) => (
                 <BattleStandee
-                  key={member.id}
+                  key={`${member.id}-${replayStepForRender}`}
                   character={member}
                   defeated={member.injured || member.hp <= 0}
                   replayEvent={currentReplayEvent}
@@ -206,6 +242,12 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
               </div>
             )}
 
+            {isPreparing && (
+              <button className="primary-button battle-prepare-start-button" disabled={!canStart || startLaunching} onClick={handleStartBattle}>
+                {startLaunching ? '登上舞台…' : battle.phase === 'relay' ? '开始接力战斗' : '开始自动战斗'}
+              </button>
+            )}
+
           </section>
 
           <div className="battle-bottom-actions">
@@ -223,7 +265,7 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
 
         <aside className="battle-right-panel">
           {(battle.phase === 'select' || battle.phase === 'relay') && (
-            <button className="primary-button battle-header-start-button" disabled={!canStart} onClick={onStart}>
+            <button className="primary-button battle-header-start-button" disabled={!canStart || startLaunching} onClick={handleStartBattle}>
               {battle.phase === 'relay' ? '开始接力战斗' : '开始自动战斗'}
             </button>
           )}

@@ -191,7 +191,7 @@ function prepareCombatant(
   }
 
   if (isAlly && actor.passive?.id === 'rina_board' && upgradeLevel(actor) >= 2) {
-    addShield(actor, 10, log, '触发Lv2璃奈板');
+    addShield(actor, 10, log, '触发Lv2璃奈板', emit);
   }
 
   if (isAlly && actor.passive?.id === 'kotori_shield_breaker') {
@@ -238,7 +238,7 @@ function prepareCombatant(
   }
 
   if (isAlly && actor.group === 'president' && hasBond(team, 'president', 3)) {
-    addShield(actor, Math.ceil(actor.maxHp * 0.2), log, '触发「领袖风范」');
+    addShield(actor, Math.ceil(actor.maxHp * 0.2), log, '触发「领袖风范」', emit);
   }
 
 }
@@ -370,10 +370,12 @@ function applyRoleDamageMultiplier(
   };
 }
 
-function applyDamageToShieldAndHp(defender: Character, damage: number) {
+function applyDamageToShieldAndHp(defender: Character, damage: number): { shieldDamage: number; hpDamage: number } {
   const shieldDamage = Math.min(defender.shield, damage);
+  const hpDamage = Math.min(defender.hp, Math.max(0, damage - shieldDamage));
   defender.shield -= shieldDamage;
-  defender.hp = Math.max(0, defender.hp - (damage - shieldDamage));
+  defender.hp = Math.max(0, defender.hp - hpDamage);
+  return { shieldDamage, hpDamage };
 }
 
 function dealDirectDamage(
@@ -389,10 +391,13 @@ function dealDirectDamage(
   targets.filter((target) => target.hp > 0).forEach((target) => {
     const shieldBefore = target.shield;
     const durabilityBefore = target.hp + target.shield;
-    applyDamageToShieldAndHp(target, amount);
+    const { shieldDamage, hpDamage } = applyDamageToShieldAndHp(target, amount);
     const actualDamage = Math.min(amount, durabilityBefore);
-    const shieldBlocked = Math.min(shieldBefore, actualDamage);
-    const text = `${attacker.name}发动「${reason}」，对${target.name}造成${amount}点伤害，${target.name}剩余${target.hp}HP。`;
+    const shieldBlocked = Math.min(shieldBefore, shieldDamage);
+    const resultText = shieldBlocked > 0
+      ? `护盾抵挡${shieldBlocked}点，生命受到${hpDamage}点伤害`
+      : `生命受到${hpDamage}点伤害`;
+    const text = `${attacker.name}发动「${reason}」，对${target.name}造成${amount}点伤害；${resultText}，${target.name}剩余${target.hp}HP。`;
     log.push(text);
     emitBattleEvent(emit, {
       kind: 'damage',
@@ -402,7 +407,9 @@ function dealDirectDamage(
       actorName: attacker.name,
       targetName: target.name,
       amount: actualDamage,
+      hpDamage,
       shieldBlocked,
+      shieldBroken: shieldBefore > 0 && target.shield === 0,
       hpLeft: target.hp,
     });
     if (actualDamage > 0 && isAllyAttacker) {
@@ -775,12 +782,15 @@ function resolveAttack(
 
   const defenderShieldBefore = defender.shield;
   const defenderDurabilityBefore = defender.hp + defender.shield;
-  applyDamageToShieldAndHp(defender, damage);
+  const { shieldDamage, hpDamage } = applyDamageToShieldAndHp(defender, damage);
   const actualDamage = Math.min(damage, defenderDurabilityBefore);
   if (actualDamage > 0 && defender.passive?.id === 'boss_umi_iron_wall') {
     defenderFlags.bossUmiRoundDamageTaken = (defenderFlags.bossUmiRoundDamageTaken ?? 0) + actualDamage;
   }
-  const attackText = `${attacker.name}攻击${defender.name}，造成${damage}伤害，${defender.name}剩余${defender.hp}HP。`;
+  const shieldResultText = shieldDamage > 0
+    ? `护盾抵挡${shieldDamage}点，生命受到${hpDamage}点伤害`
+    : `生命受到${hpDamage}点伤害`;
+  const attackText = `${attacker.name}攻击${defender.name}，造成${damage}伤害；${shieldResultText}，${defender.name}剩余${defender.hp}HP。`;
   log.push(attackText);
   if (roleAdjustmentText) {
     log.push(roleAdjustmentText);
@@ -794,7 +804,10 @@ function resolveAttack(
       actorName: attacker.name,
       targetName: defender.name,
       amount: actualDamage,
-      shieldBlocked: Math.min(defenderShieldBefore, actualDamage),
+      hpDamage,
+      shieldBlocked: Math.min(defenderShieldBefore, shieldDamage),
+      shieldBroken: defenderShieldBefore > 0 && defender.shield === 0,
+      critical,
       hpLeft: defender.hp,
     });
   } else {
@@ -1006,7 +1019,16 @@ function castNozomiTarot(
   if (card === 'hanged') {
     const multiplier = upgradeLevel(attacker) >= 2 ? 2.5 : 1.75;
     flags.nextAttackMultiplier = multiplier;
-    log.push(`${attacker.name}发动《${attacker.skill.name}》，抽到「倒吊人」，本次技能伤害×${multiplier}。`);
+    const text = `${attacker.name}发动《${attacker.skill.name}》，抽到「倒吊人」，本次技能伤害×${multiplier}。`;
+    log.push(text);
+    emitBattleEvent(emit, {
+      kind: 'major',
+      text,
+      actorId: attacker.id,
+      targetId: defender.id,
+      actorName: attacker.name,
+      targetName: defender.name,
+    });
     resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
     return;
   }
@@ -1015,7 +1037,16 @@ function castNozomiTarot(
     const multiplier = upgradeLevel(attacker) >= 3 ? 1.25 : 1.1;
     const shieldAmount = upgradeLevel(attacker) >= 3 ? 12 : 8;
     flags.nextAttackMultiplier = multiplier;
-    log.push(`${attacker.name}发动《${attacker.skill.name}》，抽到「命运之轮」，造成${multiplier}倍伤害并获得${shieldAmount}护盾。`);
+    const text = `${attacker.name}发动《${attacker.skill.name}》，抽到「命运之轮」，造成${multiplier}倍伤害并获得${shieldAmount}护盾。`;
+    log.push(text);
+    emitBattleEvent(emit, {
+      kind: 'major',
+      text,
+      actorId: attacker.id,
+      targetId: defender.id,
+      actorName: attacker.name,
+      targetName: defender.name,
+    });
     resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
     if (attacker.hp > 0) {
       addShield(attacker, shieldAmount, log, '抽到「命运之轮」', emit);
@@ -1025,7 +1056,16 @@ function castNozomiTarot(
 
   flags.tarotMagicianUsedThisTurn = true;
   flags.tarotMagicianTriggeredLastSkill = true;
-  log.push(`${attacker.name}发动《${attacker.skill.name}》，抽到「魔术师」，本次造成1倍伤害并立即再次抽牌。`);
+  const text = `${attacker.name}发动《${attacker.skill.name}》，抽到「魔术师」，本次造成1倍伤害并立即再次抽牌。`;
+  log.push(text);
+  emitBattleEvent(emit, {
+    kind: 'major',
+    text,
+    actorId: attacker.id,
+    targetId: defender.id,
+    actorName: attacker.name,
+    targetName: defender.name,
+  });
   resolveAttack(attacker, defender, isAllyAttacker, !isAllyAttacker, team, runtime, log, stats, emit);
   if (defender.hp > 0 && attacker.hp > 0) {
     castNozomiTarot(attacker, defender, isAllyAttacker, team, runtime, log, stats, emit);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { BattleState, BattleStats, Character, CharacterBattleStats } from '../game';
 import { Avatar } from './common';
 
@@ -387,9 +387,20 @@ export function BattleLogSummary({ stats, team }: { stats?: BattleStats; team?: 
 export function BattleLog({ entries, stats, team, extraAction, showDamageButton = true }: { entries: string[]; stats?: BattleStats; team?: Character[]; extraAction?: { label: string; onClick: () => void }; showDamageButton?: boolean }) {
   const [showDetails, setShowDetails] = useState(false);
   const [showDamage, setShowDamage] = useState(false);
+  const logListRef = useRef<HTMLOListElement>(null);
   const readableEntries = mergeConsecutiveAttacks(buildReadableBattleLog(entries));
   const visibleEntries = showDetails ? readableEntries : readableEntries.filter((entry) => entry.level !== 'detail');
   const canShowDamage = showDamageButton && Boolean(stats && team && team.length > 0);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const list = logListRef.current;
+      if (list) {
+        list.scrollTop = list.scrollHeight;
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [entries.length, showDetails, showDamage]);
 
   return (
     <div className="battle-log" aria-live="polite">
@@ -397,7 +408,7 @@ export function BattleLog({ entries, stats, team, extraAction, showDamageButton 
         <h3>{LOG_WORDS.title}</h3>
         <div className="battle-log-actions">
           {extraAction && (
-            <button className="ghost-button battle-log-retry-button" type="button" onClick={extraAction.onClick}>
+            <button className="danger-button battle-log-retry-button" type="button" onClick={extraAction.onClick}>
               {extraAction.label}
             </button>
           )}
@@ -417,7 +428,7 @@ export function BattleLog({ entries, stats, team, extraAction, showDamageButton 
         </div>
       )}
       <BattleLogSummary stats={stats} team={team} />
-      <ol>
+      <ol ref={logListRef}>
         {visibleEntries.map((entry) => (
           <li className={`battle-log-entry log-${entry.level} ${isAllyActionEntry(entry, team) ? 'log-ally-action' : ''} ${isEnemyActionEntry(entry, team) ? 'log-enemy-action' : ''}`.trim()} key={entry.id}>
             <span>{renderBattleLogText(entry.text)}</span>

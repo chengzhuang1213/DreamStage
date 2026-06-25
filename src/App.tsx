@@ -25,7 +25,6 @@ import {
 import { MUSIC_SRC, SFX_SRC, type MusicKey, type SfxKey } from './assets';
 import { MusicToggleButton } from './components/common';
 import { BattleResultModal, RunStatsModal } from './components/battleLog';
-import { CompactRunSidePanel } from './components/bonds';
 import { BattleScreen } from './pages/BattleScreen';
 import { BlessingScreen } from './pages/BlessingScreen';
 import { MapScreen } from './pages/MapScreen';
@@ -35,6 +34,7 @@ import { EndScreen, ResultScreen } from './pages/ResultScreens';
 import { ShopScreen } from './pages/ShopScreen';
 import { StartScreen } from './pages/StartScreen';
 import { DraftScreen } from './pages/DraftScreen';
+import { TeamScene } from './pages/TeamScene';
 import {
   BOSS_BLESSING_TRANSITION_MS,
   BossBlessingTransition,
@@ -62,7 +62,7 @@ function getMusicKey(run: RunState): MusicKey {
   if (run.screen === 'rest' || run.screen === 'blessing') {
     return 'rest';
   }
-  if (run.screen === 'map') {
+  if (run.screen === 'team' || run.screen === 'map') {
     return 'map';
   }
   return 'home';
@@ -131,20 +131,14 @@ function App() {
   const [goldPulse, setGoldPulse] = useState(false);
   const [startTransitioning, setStartTransitioning] = useState(false);
   const [bossBlessingTransitioning, setBossBlessingTransitioning] = useState(false);
+  const [sceneTransitioning, setSceneTransitioning] = useState(false);
 
   const currentNode = useMemo(
     () => run.map.find((node) => node.id === run.currentNodeId) ?? null,
     [run.currentNodeId, run.map],
   );
 
-  const aliveTeam = run.team.filter((member) => !member.injured && member.hp > 0);
   const currentQuestionEvent = getQuestionEvent(run.questionEventId);
-  const shopPreviewTeam = useMemo(() => {
-    if (run.screen !== 'shop' || !shopSelectedOffer || run.team.length >= 4) {
-      return run.team;
-    }
-    return [...run.team, createAlly(shopSelectedOffer)];
-  }, [run.screen, run.team, shopSelectedOffer]);
   const audioRefs = useRef<Partial<Record<MusicKey | SfxKey, HTMLAudioElement>>>({});
   const audioUnlockedRef = useRef(false);
   const currentMusicRef = useRef<MusicKey | null>(null);
@@ -154,6 +148,8 @@ function App() {
   const previousGoldRef = useRef(run.gold);
   const startTransitionTimeoutRef = useRef<number | null>(null);
   const bossBlessingTransitionTimeoutRef = useRef<number | null>(null);
+  const previousScreenRef = useRef(run.screen);
+  const sceneTransitionTimeoutRef = useRef<number | null>(null);
 
   function getAudio(key: MusicKey | SfxKey, src: string, preload: HTMLMediaElement['preload'] = 'metadata') {
     const existing = audioRefs.current[key];
@@ -264,8 +260,27 @@ function App() {
       if (bossBlessingTransitionTimeoutRef.current !== null) {
         window.clearTimeout(bossBlessingTransitionTimeoutRef.current);
       }
+      if (sceneTransitionTimeoutRef.current !== null) {
+        window.clearTimeout(sceneTransitionTimeoutRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (previousScreenRef.current === run.screen) {
+      return;
+    }
+
+    previousScreenRef.current = run.screen;
+    setSceneTransitioning(true);
+    if (sceneTransitionTimeoutRef.current !== null) {
+      window.clearTimeout(sceneTransitionTimeoutRef.current);
+    }
+    sceneTransitionTimeoutRef.current = window.setTimeout(() => {
+      sceneTransitionTimeoutRef.current = null;
+      setSceneTransitioning(false);
+    }, 420);
+  }, [run.screen]);
 
   useEffect(() => {
     if (run.screen !== 'shop') {
@@ -328,8 +343,13 @@ function App() {
       window.clearTimeout(bossBlessingTransitionTimeoutRef.current);
       bossBlessingTransitionTimeoutRef.current = null;
     }
+    if (sceneTransitionTimeoutRef.current !== null) {
+      window.clearTimeout(sceneTransitionTimeoutRef.current);
+      sceneTransitionTimeoutRef.current = null;
+    }
     setStartTransitioning(false);
     setBossBlessingTransitioning(false);
+    setSceneTransitioning(false);
     setRun(createRun());
   }
 
@@ -581,6 +601,21 @@ function App() {
   }
   function finishCurrentNode() {
     setRun((previous) => advanceAfterCurrentNode(previous));
+  }
+
+  function finishCurrentNodeToMap() {
+    setRun((previous) => ({
+      ...advanceAfterCurrentNode(previous),
+      screen: 'map',
+    }));
+  }
+
+  function openMapScene() {
+    setRun((previous) => (previous.screen === 'team' ? { ...previous, screen: 'map' } : previous));
+  }
+
+  function openTeamScene() {
+    setRun((previous) => (previous.screen === 'map' ? { ...previous, screen: 'team' } : previous));
   }
 
   function resolveQuestionEvent(optionId: string, targetId?: string) {
@@ -919,43 +954,20 @@ function App() {
     });
   }
 
-  if (run.screen === 'start') {
-    return (
-      <div className={`app-shell start-shell scene-home ${startTransitioning ? 'is-entering' : ''}`}>
-        <SakuraLayer />
-        {startTransitioning && <div className="start-transition-flash" aria-hidden="true" />}
-        <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
-        <StartScreen onStart={startGame} />
-      </div>
-    );
-  }
-
-  if (run.screen === 'draft') {
-    return (
-      <div className="app-shell draft-shell scene-draft-shop">
-        <SceneParticles variant="draft-shop" />
-        <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
-        <DraftScreen
-          candidates={run.candidates}
-          selectedIds={run.draftSelection}
-          onToggle={toggleDraft}
-          onReroll={rerollDraft}
-          onConfirm={confirmDraft}
-        />
-      </div>
-    );
-  }
-
-  const sceneClass = run.screen === 'battle' && run.battle
-    ? `scene-battle-${run.battle.type}`
-    : run.screen === 'shop'
+  const viewportSceneClass = run.screen === 'start'
+    ? 'scene-home'
+    : run.screen === 'draft' || run.screen === 'shop'
       ? 'scene-draft-shop'
-      : run.screen === 'map'
-        ? 'scene-map'
+      : run.screen === 'battle' && run.battle
+        ? `scene-battle-${run.battle.type}`
         : run.screen === 'rest' || run.screen === 'question' || run.screen === 'blessing'
           ? 'scene-rest-blessing'
-          : 'scene-home';
-  const particleVariant = run.screen === 'battle' && run.battle
+          : run.screen === 'team'
+            ? 'scene-team'
+            : 'scene-map';
+  const hasMapScene = run.screen === 'map';
+  const hasOverlay = false;
+  const overlayParticleVariant = run.screen === 'battle' && run.battle
     ? run.battle.type === 'elite'
       ? 'battle-elite'
       : run.battle.type === 'boss'
@@ -963,8 +975,21 @@ function App() {
         : 'battle-normal'
     : run.screen === 'shop'
       ? 'draft-shop'
-      : run.screen === 'map'
-        ? 'map'
+      : run.screen === 'rest' || run.screen === 'question'
+        ? 'rest'
+        : run.screen === 'blessing'
+          ? 'blessing'
+          : null;
+  const currentSceneParticle = run.screen === 'team' || run.screen === 'map'
+    ? 'map'
+    : run.screen === 'draft' || run.screen === 'shop'
+      ? 'draft-shop'
+      : run.screen === 'battle' && run.battle
+        ? run.battle.type === 'elite'
+          ? 'battle-elite'
+          : run.battle.type === 'boss'
+            ? 'battle-boss'
+            : 'battle-normal'
         : run.screen === 'rest' || run.screen === 'question'
           ? 'rest'
           : run.screen === 'blessing'
@@ -972,39 +997,85 @@ function App() {
             : null;
 
   return (
-    <div className={`app-shell game-shell ${sceneClass} ${run.screen === 'map' ? 'map-hud-shell' : ''} ${run.screen === 'battle' ? 'battle-shell' : ''} ${run.screen === 'shop' ? 'shop-shell' : ''} ${run.screen === 'rest' || run.screen === 'question' ? 'rest-shell' : ''}`} onPointerDownCapture={handleShellPointerDown}>
-      {particleVariant && <SceneParticles variant={particleVariant} />}
+    <div className={`game-viewport ${viewportSceneClass}`} onPointerDownCapture={handleShellPointerDown}>
       <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
-      {run.screen !== 'shop' && (
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">非商用个人 Beta</p>
-            <h1>DreamStage</h1>
+
+      <div className="game-scene" key={run.screen}>
+        {currentSceneParticle && <SceneParticles variant={currentSceneParticle} />}
+
+        {run.screen === 'start' && (
+          <div className={`viewport-shell home-scene-shell start-shell ${startTransitioning ? 'is-entering' : ''}`}>
+            <SakuraLayer />
+            {startTransitioning && <div className="start-transition-flash" aria-hidden="true" />}
+            <StartScreen onStart={startGame} />
           </div>
-          <div className="run-stats" aria-label="当前资源">
-            <span className={goldPulse ? 'resource-pulse' : ''}>金币 {run.gold}</span>
-            <span>伙伴 {run.team.length}</span>
-            <span>可出战 {aliveTeam.length}</span>
-            <span title={`Seed: ${run.runSeed}`}>Seed {run.runSeed}</span>
+        )}
+
+        {run.screen === 'team' && (
+          <div className="viewport-shell team-scene-shell">
+            <TeamScene
+              team={run.team}
+              gold={run.gold}
+              boss={run.boss}
+              nodes={run.map}
+              runSeed={run.runSeed}
+              onOpenMap={openMapScene}
+              onOpenStats={() => setRun((previous) => ({ ...previous, statsOpen: true }))}
+              onRestart={resetRun}
+            />
           </div>
-        </header>
-      )}
+        )}
 
-      <main className="main-layout">
-        <CompactRunSidePanel team={shopPreviewTeam} onRestart={resetRun} />
+        {run.screen === 'draft' && (
+          <div className="viewport-shell draft-scene-shell draft-shell">
+            <SceneParticles variant="draft-shop" />
+            <DraftScreen
+              candidates={run.candidates}
+              selectedIds={run.draftSelection}
+              onToggle={toggleDraft}
+              onReroll={rerollDraft}
+              onConfirm={confirmDraft}
+            />
+          </div>
+        )}
 
-        <section className="screen-panel">
-          {run.screen === 'map' && <MapScreen nodes={run.map} boss={run.boss} team={run.team} stats={run.runStats} gold={run.gold} musicMuted={musicMuted} onToggleMusic={toggleMusic} onEnter={enterNode} onOpenStats={() => setRun((previous) => ({ ...previous, statsOpen: true }))} eventLog={run.eventLog} onRestart={resetRun} pulseNodeId={run.mapPulseNodeId} />}
+        {hasMapScene && (
+          <div className="viewport-shell map-scene-shell game-shell map-hud-shell">
+            <SceneParticles variant="map" />
+            <main className="main-layout">
+              <section className="screen-panel">
+                <MapScreen
+                  nodes={run.map}
+                  boss={run.boss}
+                  team={run.team}
+                  stats={run.runStats}
+                  gold={run.gold}
+                  musicMuted={musicMuted}
+                  onToggleMusic={toggleMusic}
+                  onEnter={enterNode}
+                  onOpenTeamScene={openTeamScene}
+                  onOpenStats={() => setRun((previous) => ({ ...previous, statsOpen: true }))}
+                  eventLog={run.eventLog}
+                  onRestart={resetRun}
+                  pulseNodeId={run.mapPulseNodeId}
+                />
+              </section>
+            </main>
+          </div>
+        )}
 
-          {run.screen === 'battle' && run.battle && (
+        {run.screen === 'battle' && run.battle && (
+          <div className="viewport-shell battle-scene-shell battle-shell">
             <BattleScreen
-              battle={run.battle}              boss={run.boss}
+              battle={run.battle}
+              boss={run.boss}
               gold={run.gold}
               team={run.team}
               pendingEnhance={run.enhanceReady ? run.pendingEnhance : null}
               pendingBossVictory={run.pendingBossVictory}
               onContinue={finishCurrentNode}
-              onToggleSelection={toggleBattleSelection}              onStart={startBattle}
+              onToggleSelection={toggleBattleSelection}
+              onStart={startBattle}
               onEnhance={completeEnhancement}
               onDismissEnhancement={dismissEnhancement}
               onBossBack={dismissBossVictory}
@@ -1013,13 +1084,17 @@ function App() {
               hasPendingEnhance={Boolean(run.pendingEnhance && run.battle.phase === 'won')}
               onOpenEnhancement={openPendingEnhancement}
             />
-          )}
+          </div>
+        )}
 
-          {run.screen === 'result' && run.result && run.battle && (
+        {run.screen === 'result' && run.result && run.battle && (
+          <div className="viewport-shell result-scene-shell">
             <ResultScreen result={run.result} log={run.battle.log} stats={run.battle.stats} team={run.team} onContinue={finishCurrentNode} />
-          )}
+          </div>
+        )}
 
-          {run.screen === 'shop' && (
+        {run.screen === 'shop' && (
+          <div className="viewport-shell shop-scene-shell shop-shell">
             <ShopScreen
               gold={run.gold}
               offers={run.shopOffers}
@@ -1029,9 +1104,11 @@ function App() {
               onBuy={buyCharacter}
               onLeave={finishCurrentNode}
             />
-          )}
+          </div>
+        )}
 
-          {run.screen === 'rest' && (
+        {run.screen === 'rest' && (
+          <div className="viewport-shell rest-scene-shell rest-shell">
             <RestScreen
               gold={run.gold}
               team={run.team}
@@ -1041,9 +1118,11 @@ function App() {
               onRevive={reviveCharacter}
               onLeave={finishCurrentNode}
             />
-          )}
+          </div>
+        )}
 
-          {run.screen === 'question' && (
+        {run.screen === 'question' && (
+          <div className="viewport-shell event-scene-shell">
             <QuestionScreen
               event={currentQuestionEvent}
               gold={run.gold}
@@ -1051,24 +1130,30 @@ function App() {
               canUseGacha={canUseMysteryGacha(run.team, run.gold)}
               onResolve={resolveQuestionEvent}
             />
-          )}
+          </div>
+        )}
 
-          {run.screen === 'blessing' && (
+        {run.screen === 'blessing' && (
+          <div className="viewport-shell result-scene-shell">
             <BlessingScreen team={run.team} tier={run.boss.bossTier} onContinue={continueFromBlessing} />
-          )}
+          </div>
+        )}
 
-          {run.screen === 'win' && run.battle && (
+        {run.screen === 'win' && run.battle && (
+          <div className="viewport-shell result-scene-shell">
             <EndScreen
               title="胜利"
-              body="Boss战完成，Beta角色构筑循环已经跑通。"
+              body="Boss 战完成，Beta 角色构筑循环已经跑通。"
               log={run.battle.log}
               stats={run.battle.stats}
               team={run.team}
               onRestart={resetRun}
             />
-          )}
+          </div>
+        )}
 
-          {run.screen === 'loss' && (
+        {run.screen === 'loss' && (
+          <div className="viewport-shell result-scene-shell">
             <EndScreen
               title="失败"
               body="所有伙伴都进入重伤状态。下一局可以更早休息或招募。"
@@ -1079,39 +1164,164 @@ function App() {
               onRetryBattle={run.battle?.type === 'boss' && run.bossRetrySnapshot ? retryBossBattle : undefined}
               onRestart={resetRun}
             />
+          </div>
+        )}
+      </div>
+
+      <div className={`scene-blackout ${sceneTransitioning ? 'active' : ''}`} aria-hidden="true" />
+
+      {hasOverlay && (
+        <div className="game-overlay-layer">
+          {overlayParticleVariant && <SceneParticles variant={overlayParticleVariant} />}
+
+          {run.screen === 'battle' && run.battle && (
+            <div className="game-overlay battle-overlay">
+              <section className="game-overlay-panel battle-shell">
+                <BattleScreen
+                  battle={run.battle}
+                  boss={run.boss}
+                  gold={run.gold}
+                  team={run.team}
+                  pendingEnhance={run.enhanceReady ? run.pendingEnhance : null}
+                  pendingBossVictory={run.pendingBossVictory}
+                  onContinue={finishCurrentNode}
+                  onToggleSelection={toggleBattleSelection}
+                  onStart={startBattle}
+                  onEnhance={completeEnhancement}
+                  onDismissEnhancement={dismissEnhancement}
+                  onBossBack={dismissBossVictory}
+                  onBossBlessing={enterBossBlessing}
+                  onReplayDone={handleBattleReplayDone}
+                  hasPendingEnhance={Boolean(run.pendingEnhance && run.battle.phase === 'won')}
+                  onOpenEnhancement={openPendingEnhancement}
+                />
+              </section>
+            </div>
           )}
-        </section>
-      </main>
 
-      {bossBlessingTransitioning && <BossBlessingTransition team={run.team} />}
+          {run.screen === 'result' && run.result && run.battle && (
+            <div className="game-overlay result-overlay">
+              <section className="game-overlay-panel">
+                <ResultScreen result={run.result} log={run.battle.log} stats={run.battle.stats} team={run.team} onContinue={finishCurrentNode} />
+              </section>
+            </div>
+          )}
 
-      {run.battleStatsOpen && run.battle && (
-        <BattleResultModal
-          phase={run.battle.phase}
-          stats={run.battle.stats}
-          team={run.team}
-          primaryLabel={run.pendingEnhance && run.battle.phase === 'won' ? '开启强化' : undefined}
-          mapLabel="返回地图"
-          onClose={closeBattleStatsModal}
-          onPrimary={run.pendingEnhance && run.battle.phase === 'won' ? openPendingEnhancement : undefined}
-          onMap={run.battle.type === 'battle' && run.battle.phase === 'won' && !run.pendingEnhance ? finishCurrentNode : undefined}
-        />
-      )}
-      {run.statsOpen && (
-        <RunStatsModal
-          stats={run.runStats}
-          team={run.team}
-          onClose={() => setRun((previous) => ({ ...previous, statsOpen: false }))}
-        />
+          {run.screen === 'shop' && (
+            <div className="game-overlay shop-overlay">
+              <section className="game-overlay-panel shop-shell">
+                <ShopScreen
+                  gold={run.gold}
+                  offers={run.shopOffers}
+                  team={run.team}
+                  selectedOffer={shopSelectedOffer}
+                  onSelectOffer={setShopSelectedOffer}
+                  onBuy={buyCharacter}
+                  onLeave={finishCurrentNode}
+                />
+              </section>
+            </div>
+          )}
+
+          {run.screen === 'rest' && (
+            <div className="game-overlay rest-overlay">
+              <section className="game-overlay-panel rest-shell">
+                <RestScreen
+                  gold={run.gold}
+                  team={run.team}
+                  healUsed={run.restHealUsed}
+                  reviveUsed={run.restReviveUsed}
+                  onHeal={healCharacter}
+                  onRevive={reviveCharacter}
+                  onLeave={finishCurrentNode}
+                />
+              </section>
+            </div>
+          )}
+
+          {run.screen === 'question' && (
+            <div className="game-overlay question-overlay">
+              <section className="game-overlay-panel">
+                <QuestionScreen
+                  event={currentQuestionEvent}
+                  gold={run.gold}
+                  team={run.team}
+                  canUseGacha={canUseMysteryGacha(run.team, run.gold)}
+                  onResolve={resolveQuestionEvent}
+                />
+              </section>
+            </div>
+          )}
+
+          {run.screen === 'blessing' && (
+            <div className="game-overlay blessing-overlay">
+              <section className="game-overlay-panel">
+                <BlessingScreen team={run.team} tier={run.boss.bossTier} onContinue={continueFromBlessing} />
+              </section>
+            </div>
+          )}
+
+          {run.screen === 'win' && run.battle && (
+            <div className="game-overlay end-overlay">
+              <section className="game-overlay-panel">
+                <EndScreen
+                  title="胜利"
+                  body="Boss 战完成，Beta 角色构筑循环已经跑通。"
+                  log={run.battle.log}
+                  stats={run.battle.stats}
+                  team={run.team}
+                  onRestart={resetRun}
+                />
+              </section>
+            </div>
+          )}
+
+          {run.screen === 'loss' && (
+            <div className="game-overlay end-overlay">
+              <section className="game-overlay-panel">
+                <EndScreen
+                  title="失败"
+                  body="所有伙伴都进入重伤状态。下一局可以更早休息或招募。"
+                  log={run.battle?.log ?? []}
+                  enemies={run.battle?.enemies ?? []}
+                  stats={run.battle?.stats}
+                  team={run.team}
+                  onRetryBattle={run.battle?.type === 'boss' && run.bossRetrySnapshot ? retryBossBattle : undefined}
+                  onRestart={resetRun}
+                />
+              </section>
+            </div>
+          )}
+        </div>
       )}
 
-      {currentNode && (
-        <footer className="context-bar">
-          当前层：第 {run.boss.bossTier} 层 · 当前节点：{NODE_LABELS[currentNode.type]} · 路线第 {currentNode.row + 1} 排
-        </footer>
-      )}
+      <div className="game-system-layer">
+        {bossBlessingTransitioning && <BossBlessingTransition team={run.team} />}
+
+        {run.battleStatsOpen && run.battle && (
+          <BattleResultModal
+            phase={run.battle.phase}
+            stats={run.battle.stats}
+            team={run.team}
+            primaryLabel={run.pendingEnhance && run.battle.phase === 'won' ? '开启强化' : undefined}
+            mapLabel="返回地图"
+            onClose={closeBattleStatsModal}
+            onPrimary={run.pendingEnhance && run.battle.phase === 'won' ? openPendingEnhancement : undefined}
+            onMap={run.battle.type === 'battle' && run.battle.phase === 'won' && !run.pendingEnhance ? finishCurrentNodeToMap : undefined}
+          />
+        )}
+
+        {run.statsOpen && (
+          <RunStatsModal
+            stats={run.runStats}
+            team={run.team}
+            onClose={() => setRun((previous) => ({ ...previous, statsOpen: false }))}
+          />
+        )}
+      </div>
     </div>
   );
+
 }
 
 export default App;

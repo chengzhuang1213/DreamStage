@@ -503,9 +503,13 @@ export function EventLogDetail({ eventLog }: { eventLog: string[] }) {
   );
 }
 
-export function MapActions({ onOpenStats, onOpenEvents }: { onOpenStats: () => void; onOpenEvents: () => void }) {
+export function MapActions({ onOpenTeamScene, onOpenStats, onOpenEvents }: { onOpenTeamScene: () => void; onOpenStats: () => void; onOpenEvents: () => void }) {
   return (
     <aside className="map-actions">
+      <button className="map-team-scene-button" type="button" onClick={onOpenTeamScene}>
+        <span>{'\u2605'}</span>
+        {'\u961f\u4f0d\u8be6\u60c5'}
+      </button>
       <button type="button" onClick={onOpenStats}>
         <span>{'\u25a3'}</span>
         {'\u4f24\u5bb3\u7edf\u8ba1'}

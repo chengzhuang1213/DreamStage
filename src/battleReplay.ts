@@ -3,6 +3,7 @@ import type { BattleEvent, BattleState, BattleStats, BattleUnitSnapshot, Charact
 type ReplayEventKind = BattleEvent['kind'];
 
 export interface ReplayEvent {
+  id?: string;
   kind: ReplayEventKind;
   text: string;
   actorId?: string;
@@ -12,8 +13,15 @@ export interface ReplayEvent {
   targetName?: string;
   targetNames?: string[];
   amount?: number;
+  hpDamage?: number;
   amountsByTarget?: Record<string, number>;
+  hpDamagesByTarget?: Record<string, number>;
   shieldBlocked?: number;
+  shieldBlockedByTarget?: Record<string, number>;
+  shieldBroken?: boolean;
+  shieldBrokenTargetIds?: string[];
+  critical?: boolean;
+  criticalTargetIds?: string[];
   hpLeft?: number;
   units?: BattleUnitSnapshot[];
   bossLine?: boolean;
@@ -24,15 +32,20 @@ export function parseReplayEvent(entry: string): ReplayEvent {
     return { kind: 'round', text: entry };
   }
 
-  const attackMatch = entry.match(/^(.+?)攻击(.+?)，造成(\d+)伤害，.+?剩余(\d+)HP。$/);
+  const attackMatch =
+    entry.match(/^(.+?)攻击(.+?)，造成(\d+)伤害；(?:护盾抵挡(\d+)点，)?生命受到(\d+)点伤害，.+?剩余(\d+)HP。$/) ??
+    entry.match(/^(.+?)攻击(.+?)，造成(\d+)伤害，.+?剩余(\d+)HP。$/);
   if (attackMatch) {
+    const detailed = attackMatch.length >= 7;
     return {
       kind: 'attack',
       text: entry,
       actorName: attackMatch[1],
       targetName: attackMatch[2],
       amount: Number(attackMatch[3]),
-      hpLeft: Number(attackMatch[4]),
+      hpDamage: Number(detailed ? attackMatch[5] : attackMatch[3]),
+      shieldBlocked: detailed ? Number(attackMatch[4] ?? 0) : undefined,
+      hpLeft: Number(detailed ? attackMatch[6] : attackMatch[4]),
     };
   }
 
@@ -139,6 +152,10 @@ export function groupTeamDamageEvents(events: ReplayEvent[], selectedMembers: Ch
     const targetIds = [event.targetId!];
     const targetNames = event.targetName ? [event.targetName] : [];
     const amountsByTarget: Record<string, number> = { [event.targetId!]: event.amount ?? 0 };
+    const hpDamagesByTarget: Record<string, number> = { [event.targetId!]: event.hpDamage ?? event.amount ?? 0 };
+    const shieldBlockedByTarget: Record<string, number> = { [event.targetId!]: event.shieldBlocked ?? 0 };
+    const shieldBrokenTargetIds = event.shieldBroken ? [event.targetId!] : [];
+    const criticalTargetIds = event.critical ? [event.targetId!] : [];
     let lastEvent = event;
     let cursor = index + 1;
 
@@ -160,6 +177,14 @@ export function groupTeamDamageEvents(events: ReplayEvent[], selectedMembers: Ch
         targetNames.push(next.targetName);
       }
       amountsByTarget[next.targetId!] = next.amount ?? 0;
+      hpDamagesByTarget[next.targetId!] = next.hpDamage ?? next.amount ?? 0;
+      shieldBlockedByTarget[next.targetId!] = next.shieldBlocked ?? 0;
+      if (next.shieldBroken) {
+        shieldBrokenTargetIds.push(next.targetId!);
+      }
+      if (next.critical) {
+        criticalTargetIds.push(next.targetId!);
+      }
       lastEvent = next;
       cursor += 1;
     }
@@ -174,7 +199,15 @@ export function groupTeamDamageEvents(events: ReplayEvent[], selectedMembers: Ch
       targetName: targetNames[0] ?? event.targetName,
       targetNames,
       amount: Object.values(amountsByTarget).reduce((sum, amount) => sum + amount, 0),
+      hpDamage: Object.values(hpDamagesByTarget).reduce((sum, amount) => sum + amount, 0),
       amountsByTarget,
+      hpDamagesByTarget,
+      shieldBlocked: Object.values(shieldBlockedByTarget).reduce((sum, amount) => sum + amount, 0),
+      shieldBlockedByTarget,
+      shieldBroken: shieldBrokenTargetIds.length > 0,
+      shieldBrokenTargetIds,
+      critical: criticalTargetIds.length > 0,
+      criticalTargetIds,
     });
     index = cursor - 1;
   }
@@ -238,6 +271,20 @@ export function buildReplayEvents(events: ReplayEvent[] | undefined, log: string
     }
 
     const parsed = parseReplayEvent(entry);
+    const criticalMergedIntoAttack =
+      entry.endsWith('打出暴击。') &&
+      events.some((event) => {
+        if (event.kind !== 'attack' || !event.critical) {
+          return false;
+        }
+        const actor = combatants.find(
+          (character) => character.id === event.actorId || nameMatches(character, event.actorName),
+        );
+        return actor ? nameMatches(actor, parsed.actorName) : event.actorName === parsed.actorName;
+      });
+    if (criticalMergedIntoAttack) {
+      return;
+    }
     if (parsed.actorName && hasCalloutText(parsed) && !eventTextSet.has(entry)) {
       const nextUnits = events[eventIndex]?.units;
       mergedEvents.push(hydrateReplayEvent(parsed, combatants, lastUnits ?? nextUnits));
@@ -287,8 +334,8 @@ export function buildReplayStats(team: Character[], events: ReplayEvent[], repla
         return;
       }
 
-      stats[targetId].damageTaken += event.amountsByTarget?.[targetId] ?? event.amount ?? 0;
-      stats[targetId].shieldBlocked += event.shieldBlocked ?? 0;
+      stats[targetId].damageTaken += event.hpDamagesByTarget?.[targetId] ?? event.hpDamage ?? event.amountsByTarget?.[targetId] ?? event.amount ?? 0;
+      stats[targetId].shieldBlocked += event.shieldBlockedByTarget?.[targetId] ?? event.shieldBlocked ?? 0;
     });
   });
 

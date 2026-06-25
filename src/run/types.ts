@@ -10,6 +10,7 @@ import type {
 export type Screen =
   | 'start'
   | 'draft'
+  | 'team'
   | 'map'
   | 'battle'
   | 'result'
@@ -58,4 +59,3 @@ export interface RunState {
 }
 
 export type HealType = 'small' | 'large';
-

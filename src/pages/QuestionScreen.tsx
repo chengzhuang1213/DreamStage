@@ -102,14 +102,6 @@ export function QuestionScreen({ event, gold, team, canUseGacha, onResolve }: Qu
           </div>
         )}
 
-        <div className="question-result-preview">
-          <strong>{selectedOption?.label}</strong>
-          <span>
-            {selectedOption?.description}
-            {needsTarget && selectedTarget ? ` 目标：${selectedTarget.name}` : ''}
-          </span>
-        </div>
-
         <div className="question-actions">
           <button
             className="primary-button"
