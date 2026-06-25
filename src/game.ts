@@ -262,14 +262,14 @@ export function createEnemiesForBattle(type: BattleType, rng: SeedRng, boss?: Bo
 
 export function buildMap(rng: SeedRng): MapNode[] {
   const rowSizes = [
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
     rngInt(rng, 1, 2),
     1,
   ];
@@ -317,18 +317,62 @@ export function buildMap(rng: SeedRng): MapNode[] {
     node.type = rngPick(rng, allowedTypes) ?? 'battle';
   });
 
+  function getLaneTargets(fromNode: MapNode, nextRow: MapNode[]) {
+    if (nextRow.length === 1) {
+      return nextRow;
+    }
+
+    const currentRowSize = rows[fromNode.row].length;
+    const fromStart = fromNode.col / currentRowSize;
+    const fromEnd = (fromNode.col + 1) / currentRowSize;
+
+    return nextRow.filter((toNode) => {
+      const toStart = toNode.col / nextRow.length;
+      const toEnd = (toNode.col + 1) / nextRow.length;
+
+      return fromStart < toEnd && toStart < fromEnd;
+    });
+  }
+
   for (let row = 0; row < rows.length - 1; row += 1) {
     const currentRow = rows[row];
     const nextRow = rows[row + 1];
+    const inboundIds = new Set<string>();
 
     currentRow.forEach((fromNode) => {
-      if (nextRow.length === 1) {
-        fromNode.nextIds = [nextRow[0].id];
+      const laneTargets = getLaneTargets(fromNode, nextRow);
+      const primaryTarget = rngPick(rng, laneTargets) ?? nextRow[0];
+      const nextIds = new Set([primaryTarget.id]);
+
+      if (laneTargets.length > 1 && rng.next() < 0.35) {
+        const extraTarget = rngPick(rng, laneTargets.filter((target) => target.id !== primaryTarget.id));
+        if (extraTarget) {
+          nextIds.add(extraTarget.id);
+        }
+      }
+
+      fromNode.nextIds = Array.from(nextIds);
+      fromNode.nextIds.forEach((nextId) => inboundIds.add(nextId));
+    });
+
+    nextRow.forEach((toNode) => {
+      if (inboundIds.has(toNode.id)) {
         return;
       }
 
-      const sameLaneTarget = nextRow[Math.min(fromNode.col, nextRow.length - 1)];
-      fromNode.nextIds = [sameLaneTarget.id];
+      const fromNode = rngPick(
+        rng,
+        currentRow.filter((candidate) =>
+          getLaneTargets(candidate, nextRow).some((target) => target.id === toNode.id),
+        ),
+      );
+
+      if (!fromNode) {
+        return;
+      }
+
+      fromNode.nextIds = Array.from(new Set([...fromNode.nextIds, toNode.id]));
+      inboundIds.add(toNode.id);
     });
   }
 
