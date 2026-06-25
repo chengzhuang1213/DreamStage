@@ -587,7 +587,7 @@ export function BattleScreen({ battle, boss, gold, team, pendingEnhance, pending
             entries={visibleLogEntries}
             stats={replayDone ? battle.stats : undefined}
             team={team}
-            extraAction={replayEnabled && !replayDone ? { label: '跳过回放', onClick: () => setReplayStep(replayEvents.length - 1) } : undefined}
+            extraAction={replayEnabled && !replayDone ? { label: '跳过战斗', onClick: () => setReplayStep(replayEvents.length - 1) } : undefined}
             showDamageButton={false}
           />
         </aside>
