@@ -17,7 +17,8 @@ export { BATTLE_ENEMY_TEMPLATES, STRONG_ENEMY_TEMPLATES, WEAK_ENEMY_TEMPLATES } 
 export { ELITE_TEMPLATES } from './game/data/elites';
 export { GROUP_LABELS, NODE_LABELS, RARITY_LABELS, ROLE_DAMAGE_MULTIPLIERS, ROLE_LABELS, REWARD_GOLD } from './game/data/labels';
 export { getActiveBonds, getActiveSecondaryBonds, hasBond, hasSecondaryBond } from './game/bonds';
-export { copyCharacter, getBattleSlots, resolveBattleGroup, resolveBattleSegment, withBattleRandom } from './game/battle';
+export { copyCharacter } from './game/battleState';
+export { getBattleSlots, resolveBattleGroup, resolveBattleSegment, withBattleRandom } from './game/battle';
 
 export function getBossesForTier(tier: BossTier): BossTemplate[] {
   return BOSS_TEMPLATES.filter((boss) => boss.bossTier === tier);
@@ -323,15 +324,11 @@ export function buildMap(rng: SeedRng): MapNode[] {
     }
 
     const currentRowSize = rows[fromNode.row].length;
-    const fromStart = fromNode.col / currentRowSize;
-    const fromEnd = (fromNode.col + 1) / currentRowSize;
+    const projectedCol = currentRowSize === 1
+      ? Math.floor(nextRow.length / 2)
+      : Math.round((fromNode.col / (currentRowSize - 1)) * (nextRow.length - 1));
 
-    return nextRow.filter((toNode) => {
-      const toStart = toNode.col / nextRow.length;
-      const toEnd = (toNode.col + 1) / nextRow.length;
-
-      return fromStart < toEnd && toStart < fromEnd;
-    });
+    return nextRow.filter((toNode) => Math.abs(toNode.col - projectedCol) <= 1);
   }
 
   for (let row = 0; row < rows.length - 1; row += 1) {
@@ -341,15 +338,7 @@ export function buildMap(rng: SeedRng): MapNode[] {
 
     currentRow.forEach((fromNode) => {
       const laneTargets = getLaneTargets(fromNode, nextRow);
-      const primaryTarget = rngPick(rng, laneTargets) ?? nextRow[0];
-      const nextIds = new Set([primaryTarget.id]);
-
-      if (laneTargets.length > 1 && rng.next() < 0.35) {
-        const extraTarget = rngPick(rng, laneTargets.filter((target) => target.id !== primaryTarget.id));
-        if (extraTarget) {
-          nextIds.add(extraTarget.id);
-        }
-      }
+      const nextIds = new Set((laneTargets.length > 0 ? laneTargets : [nextRow[0]]).map((target) => target.id));
 
       fromNode.nextIds = Array.from(nextIds);
       fromNode.nextIds.forEach((nextId) => inboundIds.add(nextId));

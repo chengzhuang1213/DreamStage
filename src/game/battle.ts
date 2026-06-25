@@ -1,8 +1,15 @@
-﻿import type { BattlePhase, BattleState, BattleStats, Character, CharacterBattleStats, RuntimeFlags, RuntimeState, BattleType, UpgradeLevel } from './types';
+﻿import type { BattleEvent, BattlePhase, BattleState, BattleStats, Character, RuntimeFlags, RuntimeState, BattleType, UpgradeLevel } from './types';
 import { hasBond, hasSecondaryBond } from './bonds';
-import type { BattleEvent, BattleEventKind } from './types';
 import { HERO_BATTLE_TRANSFORM_ILLUSTRATIONS } from '../battleAssets';
 import { ROLE_DAMAGE_MULTIPLIERS, ROLE_LABELS } from './data/labels';
+import { getBossBattleLine } from './battleNarration';
+import { clearBattleOnlyState, copyCharacter, copyRuntime, getBattleStat, getFlags } from './battleState';
+import {
+  type BattleEventEmitter,
+  createBattleEventEmitter,
+  emitBattleEvent,
+  emitLogEvent,
+} from './battleEvents';
 
 let battleRandom: () => number = () => 0.5;
 
@@ -26,145 +33,15 @@ export function getBattleSlots(type: BattleType, aliveCount: number): number {
   return Math.max(1, Math.min(desiredSlots[type], aliveCount));
 }
 
-export function copyCharacter(character: Character): Character {
-  return {
-    ...character,
-    passive: character.passive ? { ...character.passive } : null,
-    skill: { ...character.skill },
-  };
-}
-
-function clearBattleOnlyState(character: Character): Character {
-  const restoredMaxHp = Math.max(1, character.maxHp - character.battleMaxHpBonus);
-  return {
-    ...character,
-    hp: Math.min(character.hp, restoredMaxHp),
-    maxHp: restoredMaxHp,
-    shield: 0,
-    poison: 0,
-    vulnerable: 0,
-    vulnerableMultiplier: 2,
-    statusImmune: false,
-    battleAttackBonus: 0,
-    battleSpeedBonus: 0,
-    shieldGainReduced: false,
-    healingReduced: false,
-    shieldGainMultiplier: undefined,
-    healingMultiplier: undefined,
-    battleMaxHpBonus: 0,
-    battleSkin: undefined,
-  };
-}
-
-function copyRuntime(runtime: RuntimeState): RuntimeState {
-  return Object.fromEntries(
-    Object.entries(runtime).map(([id, flags]) => [id, { ...flags }]),
-  ) as RuntimeState;
-}
-
-function getFlags(runtime: RuntimeState, id: string): RuntimeFlags {
-  runtime[id] ??= {};
-  return runtime[id];
-}
-
-function getBattleStat(stats: BattleStats, character: Character): CharacterBattleStats {
-  stats[character.id] ??= {
-    characterId: character.id,
-    name: character.name,
-    damageDealt: 0,
-    damageTaken: 0,
-    shieldBlocked: 0,
-    criticalHits: 0,
-  };
-
-  return stats[character.id];
-}
-
-type BattleEventInput = Omit<BattleEvent, 'id' | 'units'>;
-type BattleEventEmitter = (event: BattleEventInput) => void;
-
-function createBattleEventEmitter(events: BattleEvent[], team: Character[], enemies: Character[]): BattleEventEmitter {
-  return (event) => {
-    events.push({
-      id: `battle-event-${events.length + 1}`,
-      ...event,
-      units: [...team, ...enemies].map((unit) => ({
-        id: unit.id,
-        hp: unit.hp,
-        maxHp: unit.maxHp,
-        shield: unit.shield,
-        injured: unit.injured,
-        battleSkin: unit.battleSkin,
-      })),
-    });
-  };
-}
-
-function emitBattleEvent(emit: BattleEventEmitter | undefined, event: BattleEventInput) {
-  emit?.(event);
-}
-
-function emitLogEvent(emit: BattleEventEmitter | undefined, kind: BattleEventKind, text: string) {
-  emitBattleEvent(emit, { kind, text });
-}
-
-const BOSS_BATTLE_LINES: Record<string, Partial<Record<'start' | 'win' | 'lose', string>>> = {
-  boss_honoka: {
-    start: '大家，一起全力上吧！',
-    win: '赢啦！继续向梦想前进！',
-    lose: '嘿嘿……下次一定会赢回来！',
-  },
-  boss_chika: {
-    start: '奇迹，可不会自己出现哦！',
-    win: '看来，这次幸运站在我这边呢！',
-    lose: '原来……今天的奇迹属于你。',
-  },
-  boss_dia: {
-    start: '请让我看看，你是否有站在这里的资格。',
-    win: '还需要继续努力，不可懈怠。',
-    lose: '看来……是我判断失误了。',
-  },
-  boss_hanabi: {
-    start: '站位准备好了，接下来就是我的舞台。',
-    win: '节奏没有乱，这就是胜利的理由。',
-    lose: '这一次……你的节拍更漂亮。',
-  },
-  boss_kasumi: {
-    start: '准备好被霞霞子迷住了吗？',
-    win: '哼哼，霞霞子果然最可爱！',
-    lose: '欸——怎么会这样啦！',
-  },
-  boss_izumi: {
-    start: '目标确认，开始压制。',
-    win: '核心已经被我掌握了。',
-    lose: '判断失误……我会重新计算。',
-  },
-  boss_chisato: {
-    start: '跟不上节奏的话，可是会被甩开的。',
-    win: '看来，你还得再练练呢。',
-    lose: '看来……这次是你更快一步。',
-  },
-  boss_umi: {
-    start: '请正面突破我的防线。',
-    win: '攻势虽强，但还不够严整。',
-    lose: '漂亮的突破，我心服口服。',
-  },
-  boss_maki: {
-    start: '别让我失望，认真一点吧。',
-    win: '这种程度，可赢不了我。',
-    lose: '可恶....我才不服气呢。',
-  },
-};
-
 function emitBossLine(emit: BattleEventEmitter | undefined, boss: Character, timing: 'start' | 'win' | 'lose') {
-  const line = BOSS_BATTLE_LINES[boss.templateId]?.[timing];
+  const line = getBossBattleLine(boss.templateId, timing);
   if (!line) {
     return;
   }
 
   emitBattleEvent(emit, {
     kind: 'major',
-    text: `${boss.name}「${line}」`,
+    text: `Boss台词：${boss.name}「${line}」`,
     actorId: boss.id,
     actorName: boss.name,
   });

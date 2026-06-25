@@ -16,7 +16,7 @@ export interface ShopScreenProps {
   team: Character[];
   selectedOffer: CharacterTemplate | null;
   onSelectOffer: (template: CharacterTemplate | null) => void;
-  onBuy: (template: CharacterTemplate) => void;
+  onBuy: (template: CharacterTemplate, replaceMemberId?: string) => void;
   onLeave: () => void;
 }
 
@@ -36,20 +36,28 @@ function useMobileShopMode() {
 
 export function ShopScreen({ gold, offers, team, selectedOffer, onSelectOffer, onBuy, onLeave }: ShopScreenProps) {
   const [pendingOffer, setPendingOffer] = useState<CharacterTemplate | null>(null);
+  const [replaceMemberId, setReplaceMemberId] = useState<string | null>(null);
   const [goldPulse, setGoldPulse] = useState(false);
   const previousGoldRef = useRef(gold);
   const isMobileShop = useMobileShopMode();
   const pendingOfferAvailable = pendingOffer ? offers.some((offer) => offer.id === pendingOffer.id) : false;
-  const canConfirmPurchase = Boolean(pendingOffer && pendingOfferAvailable && gold >= pendingOffer.price);
+  const needsReplacement = team.length >= 4;
+  const canConfirmPurchase = Boolean(pendingOffer && pendingOfferAvailable && gold >= pendingOffer.price && (!needsReplacement || replaceMemberId));
   const canBuySelectedOffer = Boolean(selectedOffer && offers.some((offer) => offer.id === selectedOffer.id) && gold >= selectedOffer.price);
 
   function confirmPurchase() {
     if (!pendingOffer || !canConfirmPurchase) {
       return;
     }
-    onBuy(pendingOffer);
+    onBuy(pendingOffer, replaceMemberId ?? undefined);
     setPendingOffer(null);
+    setReplaceMemberId(null);
     onSelectOffer(null);
+  }
+
+  function closePurchaseConfirm() {
+    setPendingOffer(null);
+    setReplaceMemberId(null);
   }
 
   useEffect(() => {
@@ -89,6 +97,7 @@ export function ShopScreen({ gold, offers, team, selectedOffer, onSelectOffer, o
               unaffordable={gold < offer.price}
               onClick={() => {
                 onSelectOffer(offer);
+                setReplaceMemberId(null);
                 if (isMobileShop) {
                   setPendingOffer(offer);
                 }
@@ -122,22 +131,43 @@ export function ShopScreen({ gold, offers, team, selectedOffer, onSelectOffer, o
             <p className="eyebrow">购买确认</p>
             <h2>{pendingOffer.name}</h2>
             <p>
-              花费 {pendingOffer.price}金币招募该角色吗？购买后会立即加入队伍。
+              {team.length >= 4
+                ? `花费 ${pendingOffer.price}金币招募${pendingOffer.name}，并替换一位当前成员。`
+                : `花费 ${pendingOffer.price}金币招募该角色吗？购买后会立即加入队伍。`}
             </p>
             {!canConfirmPurchase && (
               <div className="empty-state shop-confirm-warning">
-                金币不足，当前无法购买。
+                {gold < pendingOffer.price ? '金币不足，当前无法购买。' : '队伍已满，请选择一位成员替换。'}
+              </div>
+            )}
+            {team.length >= 4 && (
+              <div className="shop-replace-picker">
+                <strong>选择要替换的成员</strong>
+                <div className="shop-replace-grid">
+                  {team.map((member) => (
+                    <button
+                      className={`shop-replace-card rarity-${member.rarity} ${replaceMemberId === member.id ? 'selected' : ''}`}
+                      key={member.id}
+                      onClick={() => setReplaceMemberId(member.id)}
+                      type="button"
+                    >
+                      <Avatar character={member} label={member.name} small />
+                      <span>{member.name}</span>
+                      <small>LV{member.upgradeLevel ?? 1} · {member.hp}/{member.maxHp} HP</small>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             <div className="shop-confirm-preview">
               <ShopDetailCharacter character={pendingOffer} upgradeMode="changes" />
             </div>
             <div className="action-row">
-              <button className="secondary-button" type="button" onClick={() => setPendingOffer(null)}>
+              <button className="secondary-button" type="button" onClick={closePurchaseConfirm}>
                 取消
               </button>
               <button className="primary-button" type="button" disabled={!canConfirmPurchase} onClick={confirmPurchase}>
-                确认购买 {pendingOffer.price}金币
+                {team.length >= 4 ? `确认替换 ${pendingOffer.price}金币` : `确认购买 ${pendingOffer.price}金币`}
               </button>
             </div>
           </div>

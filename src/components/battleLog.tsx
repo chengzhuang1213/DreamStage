@@ -72,16 +72,20 @@ export function BattleResultModal({
   phase,
   stats,
   team,
-  primaryLabel = '返回',
+  primaryLabel,
+  mapLabel,
   onClose,
   onPrimary,
+  onMap,
 }: {
   phase: BattleState['phase'];
   stats: BattleStats;
   team: Character[];
   primaryLabel?: string;
+  mapLabel?: string;
   onClose: () => void;
   onPrimary?: () => void;
+  onMap?: () => void;
 }) {
   const [showStats, setShowStats] = useState(false);
   const isLost = phase === 'lost';
@@ -97,17 +101,22 @@ export function BattleResultModal({
         </p>
         {showStats && <DamageMeter stats={stats} team={team} title="伤害统计" />}
         <div className="battle-result-modal-actions">
-          {onPrimary && (
-            <button className="secondary-button" onClick={onClose} type="button">
-              返回战斗
-            </button>
-          )}
+          <button className="ghost-button battle-result-return-battle" onClick={onClose} type="button">
+            返回战斗
+          </button>
           <button className="secondary-button" onClick={() => setShowStats((visible) => !visible)} type="button">
             {showStats ? '收起伤害统计' : '查看伤害统计'}
           </button>
-          <button className="primary-button" onClick={onPrimary ?? onClose} type="button">
-            {primaryLabel}
-          </button>
+          {onPrimary && (
+            <button className="primary-button" onClick={onPrimary} type="button">
+              {primaryLabel}
+            </button>
+          )}
+          {onMap && (
+            <button className="primary-button battle-result-map-button" onClick={onMap} type="button">
+              {mapLabel ?? '返回地图'}
+            </button>
+          )}
         </div>
       </section>
     </div>

@@ -430,13 +430,25 @@
 
 .battle-result-modal-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 12px;
   margin-top: 18px;
 }
 
 .battle-result-modal-actions button {
   min-height: 48px;
+}
+
+.battle-result-return-battle {
+  background: transparent;
+  border-color: rgba(82, 96, 125, 0.28);
+}
+
+.battle-result-map-button {
+  background: linear-gradient(135deg, #ff5fa8, #ff85bd);
+  border-color: #ff9bc8;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(255, 95, 168, 0.26);
 }
 
 .battle-left-panel .battle-card-panel,

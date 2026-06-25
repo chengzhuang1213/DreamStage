@@ -419,28 +419,72 @@
 
 
 .route-line {
+  opacity: 0.92;
+  filter: drop-shadow(0 0 7px rgba(255, 214, 239, 0.46));
+}
+
+.route-line.unseen {
   opacity: 0.68;
-  filter: drop-shadow(0 0 4px rgba(255, 188, 228, 0.3));
+  filter: drop-shadow(0 0 5px rgba(255, 188, 228, 0.32));
 }
 
 .route-line.preview {
-  opacity: 0.78;
-  filter: drop-shadow(0 0 5px rgba(255, 214, 239, 0.42));
+  opacity: 1;
+  filter: drop-shadow(0 0 8px rgba(255, 235, 250, 0.6));
 }
 .route-line.reachable {
   opacity: 1;
-  filter: drop-shadow(0 0 8px rgba(255, 214, 239, 0.62));
+  filter: drop-shadow(0 0 10px rgba(255, 236, 168, 0.75));
 }
 
 .route-line.completed {
   opacity: 1;
-  filter: sepia(0.9) saturate(1.65) hue-rotate(350deg) drop-shadow(0 0 8px rgba(255, 220, 122, 0.58));
+  filter: sepia(0.9) saturate(1.85) hue-rotate(350deg) drop-shadow(0 0 10px rgba(255, 220, 122, 0.72));
 }
 
 .route-line.route-advanced {
   opacity: 1;
   animation: route-advance-flash 620ms ease-out both;
   filter: drop-shadow(0 0 10px rgba(255, 246, 178, 0.72));
+}
+
+.route-line-stroke {
+  stroke: rgba(255, 246, 172, 0.82);
+  stroke-linecap: round;
+  stroke-width: 0.82;
+  vector-effect: non-scaling-stroke;
+}
+
+.route-line-stroke-underlay {
+  stroke: rgba(108, 50, 154, 0.42);
+  stroke-width: 2.15;
+}
+
+.route-line.unseen .route-line-stroke {
+  stroke: rgba(255, 225, 160, 0.58);
+}
+
+.route-line.unseen .route-line-stroke-underlay {
+  stroke: rgba(94, 56, 142, 0.34);
+}
+
+.route-line.preview .route-line-stroke,
+.route-line.reachable .route-line-stroke {
+  stroke: rgba(255, 252, 193, 0.98);
+  stroke-width: 1.08;
+}
+
+.route-line.completed .route-line-stroke {
+  stroke: rgba(255, 226, 106, 0.96);
+  stroke-width: 1.08;
+}
+
+.route-line-texture {
+  opacity: 0.92;
+}
+
+.route-line.unseen .route-line-texture {
+  opacity: 0.72;
 }
 
 .map-cursor {

@@ -41,7 +41,7 @@ button:not(:disabled):active {
   position: fixed;
   inset: 0;
   z-index: -2;
-  background: var(--scene-bg, #f4f7fb) center / cover no-repeat fixed;
+  background: var(--scene-bg, #f4f7fb) center / cover no-repeat;
 }
 
 .app-shell::after {

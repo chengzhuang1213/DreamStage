@@ -2,8 +2,8 @@ import type { CSSProperties } from 'react';
 import type { Character } from '../game';
 import { Avatar } from './common';
 
-const SAKURA_PETALS = Array.from({ length: 26 }, (_, index) => index);
-const SCENE_PARTICLES = Array.from({ length: 18 }, (_, index) => index);
+const SAKURA_PETALS = Array.from({ length: 16 }, (_, index) => index);
+const SCENE_PARTICLES = Array.from({ length: 10 }, (_, index) => index);
 export const START_TRANSITION_MS = 1800;
 export const BOSS_BLESSING_TRANSITION_MS = 1700;
 

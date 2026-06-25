@@ -16,6 +16,7 @@ export interface ReplayEvent {
   shieldBlocked?: number;
   hpLeft?: number;
   units?: BattleUnitSnapshot[];
+  bossLine?: boolean;
 }
 
 export function parseReplayEvent(entry: string): ReplayEvent {
@@ -208,6 +209,14 @@ export function buildReplayEvents(events: ReplayEvent[] | undefined, log: string
     return groupTeamDamageEvents(log.map((entry) => hydrateReplayEvent(parseReplayEvent(entry), combatants)), selectedMembers);
   }
 
+  const normalizeEventText = (event: ReplayEvent): ReplayEvent => {
+    const bossLine = event.text.startsWith('Boss台词：');
+    return {
+      ...event,
+      bossLine: event.bossLine ?? bossLine,
+      text: bossLine ? event.text.replace(/^Boss台词：/, '') : event.text,
+    };
+  };
   const mergedEvents: ReplayEvent[] = [];
   let eventIndex = 0;
   let lastUnits = events[0]?.units;
@@ -216,13 +225,13 @@ export function buildReplayEvents(events: ReplayEvent[] | undefined, log: string
 
   log.forEach((entry) => {
     while (events[eventIndex] && events[eventIndex].text !== entry && !logTextSet.has(events[eventIndex].text)) {
-      mergedEvents.push(hydrateReplayEvent(events[eventIndex], combatants));
+      mergedEvents.push(normalizeEventText(hydrateReplayEvent(events[eventIndex], combatants)));
       lastUnits = events[eventIndex].units ?? lastUnits;
       eventIndex += 1;
     }
 
     if (events[eventIndex]?.text === entry) {
-      mergedEvents.push(hydrateReplayEvent(events[eventIndex], combatants));
+      mergedEvents.push(normalizeEventText(hydrateReplayEvent(events[eventIndex], combatants)));
       lastUnits = events[eventIndex].units ?? lastUnits;
       eventIndex += 1;
       return;
@@ -236,7 +245,7 @@ export function buildReplayEvents(events: ReplayEvent[] | undefined, log: string
   });
 
   while (eventIndex < events.length) {
-    mergedEvents.push(hydrateReplayEvent(events[eventIndex], combatants));
+    mergedEvents.push(normalizeEventText(hydrateReplayEvent(events[eventIndex], combatants)));
     lastUnits = events[eventIndex].units ?? lastUnits;
     eventIndex += 1;
   }

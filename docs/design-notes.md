@@ -10,10 +10,20 @@
 - 节点、稀有度、队伍标签、金币奖励：`src/game/data/labels.ts`
 - 图片与音频路径：`src/assets.ts`
 - 战斗结算逻辑：`src/game/battle.ts`
+- 战斗状态复制、运行时 flags、统计记录：`src/game/battleState.ts`
+- 战斗事件快照与日志事件发射：`src/game/battleEvents.ts`
+- Boss 战斗台词：`src/game/battleNarration.ts`
 - 羁绊计算逻辑：`src/game/bonds.ts`
+- 角色升级上限与升级规则：`src/game/upgrades.ts`
+- 单局初始状态：`src/run/createRun.ts`
+- 地图/问号战斗遭遇生成：`src/run/encounters.ts`
+- 问号事件可用性、抽取与结算：`src/run/questionResolution.ts`
+- 单局状态类型：`src/run/types.ts`
 - 角色升级说明：`src/game/data/upgrades.tsx`
 - 开始页组件：`src/pages/StartScreen.tsx`
 - 地图页面组件：`src/pages/MapScreen.tsx`
+- 地图展示子组件、弹窗、路线几何：`src/components/mapViews.tsx`
+- 战斗展示子组件、气泡标签、立绘卡片：`src/components/battleViews.tsx`
 - 通用头像、等级徽章、音乐按钮：`src/components/common.tsx`
 - 通用角色卡：`src/components/cards.tsx`
 - 紧凑角色行：`src/components/characters.tsx`
