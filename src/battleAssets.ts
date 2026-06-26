@@ -51,7 +51,7 @@ export const HERO_ILLUSTRATIONS: Record<string, string> = {
   keke: '/cards/Image/119Tang-Keke-4Tr0Yx.png',
   you: '/cards/Image/17Watanabe-You-En1r2L.png',
   eli: '/cards/Image/1Ayase-Eli-wRbUwD.png',
-  mari: '/cards/Image/11Ohara-Mari-nI3CW6.png',
+  iris: '/cards/Origin_Heros/Iris/Iris_arena.png',
   ren: '/cards/Image/122Hazuki-Ren-fZ9vXK.png',
   yoshiko: '/cards/Image/16Tsushima-Yoshiko-NdFuZH.png',
   nozomi: '/cards/Image/15Toujou-Nozomi-S678cZ.png',
@@ -61,7 +61,6 @@ export const HERO_ILLUSTRATIONS: Record<string, string> = {
 export const HERO_SKIN_ILLUSTRATIONS: Record<string, string> = {
   nico: '/cards/Image/Image_Skins/矢泽妮可皮肤.battle.png',
   keke: '/cards/Image/Image_Skins/唐可可皮肤.battle.png',
-  mari: '/cards/Image/Image_Skins/小原鞠莉皮肤.battle.png',
   kanata: '/cards/Image/Image_Skins/近江彼方皮肤.battle.png',
 };
 

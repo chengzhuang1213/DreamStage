@@ -25,7 +25,7 @@ export const BOND_GROUPS: BondGroup[] = [
     id: 'president',
     name: '风纪委员',
     theme: '护盾 / 免疫 / 防御',
-    memberIds: ['eli', 'mari', 'ren'],
+    memberIds: ['eli', 'iris', 'ren'],
     level2Name: '纪律委员会',
     level2Description: '风纪委员受到伤害-3。',
     level3Name: '领袖风范',
@@ -71,7 +71,7 @@ export const SECONDARY_BONDS: SecondaryBond[] = [
   {
     id: 'lucky_star',
     name: '幸运星',
-    memberIds: ['mari', 'nozomi'],
+    memberIds: ['iris', 'nozomi'],
     description: '战斗胜利后额外获得随机奖励。',
   },
   {

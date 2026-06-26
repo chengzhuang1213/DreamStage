@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import {
   NODE_LABELS,
   CHARACTER_POOL,
@@ -51,6 +51,16 @@ import { maxUpgradeLevel, upgradeCharacterOneLevel } from './game/upgrades';
 import { createSeedRng } from './rng';
 
 const DISABLED_CLICK_SFX = new Set<SfxKey>(['next', 'mapSelect', 'buy']);
+const DESIGN_WIDTH = 1920;
+const DESIGN_HEIGHT = 1080;
+
+function getViewportScale() {
+  if (typeof window === 'undefined') {
+    return 1;
+  }
+
+  return Math.min(1, window.innerWidth / DESIGN_WIDTH, window.innerHeight / DESIGN_HEIGHT);
+}
 
 function getMusicKey(run: RunState): MusicKey {
   if (run.screen === 'battle') {
@@ -116,17 +126,10 @@ function mergeBattleStats(current: BattleStats, battleStats: BattleStats): Battl
   return merged;
 }
 
-function shouldStartMuted() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return window.matchMedia('(max-width: 820px), (pointer: coarse)').matches;
-}
-
 function App() {
   const [run, setRun] = useState<RunState>(() => createRun());
-  const [musicMuted, setMusicMuted] = useState(() => shouldStartMuted());
+  const [viewportScale, setViewportScale] = useState(getViewportScale);
+  const [musicMuted, setMusicMuted] = useState(true);
   const [shopSelectedOffer, setShopSelectedOffer] = useState<CharacterTemplate | null>(null);
   const [goldPulse, setGoldPulse] = useState(false);
   const [startTransitioning, setStartTransitioning] = useState(false);
@@ -150,6 +153,16 @@ function App() {
   const bossBlessingTransitionTimeoutRef = useRef<number | null>(null);
   const previousScreenRef = useRef(run.screen);
   const sceneTransitionTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const updateViewportScale = () => {
+      setViewportScale(getViewportScale());
+    };
+
+    updateViewportScale();
+    window.addEventListener('resize', updateViewportScale);
+    return () => window.removeEventListener('resize', updateViewportScale);
+  }, []);
 
   function getAudio(key: MusicKey | SfxKey, src: string, preload: HTMLMediaElement['preload'] = 'metadata') {
     const existing = audioRefs.current[key];
@@ -997,7 +1010,11 @@ function App() {
             : null;
 
   return (
-    <div className={`game-viewport ${viewportSceneClass}`} onPointerDownCapture={handleShellPointerDown}>
+    <div
+      className={`game-viewport ${viewportSceneClass}`}
+      style={{ '--viewport-scale': viewportScale } as CSSProperties}
+      onPointerDownCapture={handleShellPointerDown}
+    >
       <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
 
       <div className="game-scene" key={run.screen}>

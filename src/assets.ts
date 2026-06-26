@@ -62,11 +62,26 @@ export const DRAFT_IMAGE_BY_ID: Record<string, string> = {
   keke: '/cards/heroes/skins/keke-legendary.png',
   you: '/cards/Image/17Watanabe-You-En1r2L.png',
   eli: '/cards/Image/1Ayase-Eli-wRbUwD.png',
-  mari: '/cards/heroes/skins/mari-legendary.png',
+  iris: '/cards/Origin_Heros/Iris/Iris_Image.png',
   ren: '/cards/Image/122Hazuki-Ren-fZ9vXK.png',
   yoshiko: '/cards/Image/16Tsushima-Yoshiko-NdFuZH.png',
   nozomi: '/cards/Image/15Toujou-Nozomi-S678cZ.png',
   kanata: '/cards/heroes/skins/kanata-legendary.png',
+};
+
+export const PROFILE_IMAGE_BY_ID: Record<string, string> = {
+  ayumu: '/cards/profiles/ayumu.png',
+  rina: '/cards/profiles/rina.png',
+  nico: '/cards/profiles/nico.png',
+  kotori: '/cards/profiles/kotori.png',
+  keke: '/cards/profiles/keke.png',
+  you: '/cards/profiles/you.png',
+  eli: '/cards/profiles/eli.png',
+  iris: '/cards/Origin_Heros/Iris/Iris_full_card.png',
+  ren: '/cards/profiles/ren.png',
+  yoshiko: '/cards/profiles/yoshiko.png',
+  nozomi: '/cards/profiles/nozomi.png',
+  kanata: '/cards/profiles/kanata.png',
 };
 
 export const NODE_ICON_SRC: Record<MapNode['type'], string> = {

@@ -436,7 +436,7 @@ function expireIzumiPressureDebuff(actor: Character, runtime: RuntimeState, log:
 }
 
 function addFightingSpirit(character: Character, runtime: RuntimeState, log: string[], amount = 1) {
-  if (character.templateId !== 'mari') {
+  if (character.templateId !== 'iris') {
     return;
   }
 

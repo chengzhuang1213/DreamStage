@@ -122,7 +122,7 @@ function battleCalloutLabel(character: Character, replayEvent: ReplayEvent | nul
 
 const LEGENDARY_FLAVOR_CALLOUTS: Record<string, string> = {
   nico: '妮可妮可妮',
-  mari: 'shiny!',
+    iris: '星辉!',
   kanata: '好困Orz',
   keke: '我太厉害了8',
 };
@@ -225,7 +225,7 @@ export function BattleStandee({ character, replayEvent, side, defeated = false }
   const legendarySkinScale: Record<string, number> = {
     nico: 0.72,
     keke: 0.72,
-    mari: 0.7,
+    iris: 0.7,
     kanata: 0.72,
   };
   const enemyScale = character.templateId === 'boss_hanabi'
