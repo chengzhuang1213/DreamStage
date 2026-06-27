@@ -37,189 +37,128 @@ function portraitSrc(member: Character) {
   return PROFILE_IMAGE_BY_ID[member.templateId] ?? member.avatar;
 }
 
-function profileVideoSrc(member: Character) {
-  return member.templateId === 'iris' ? '/cards/Origin_Heros/Iris/Iris_profile_video.mp4' : null;
+const IRIS_SPRITESHEET_URL = '/cards/Origin_Heros/Iris/spritesheet/iris_v2_optimized_spritesheet/iris_idle_v2_spritesheet.json';
+const IRIS_SPRITESHEET_BASE = '/cards/Origin_Heros/Iris/spritesheet/iris_v2_optimized_spritesheet/';
+
+interface SpriteFrame {
+  sheet: string;
+  frame: { x: number; y: number; w: number; h: number };
+  spriteSourceSize: { x: number; y: number; w: number; h: number };
+  sourceSize: { w: number; h: number };
+  duration?: number;
 }
 
-function removeConnectedVideoBackground(imageData: ImageData, width: number, height: number) {
-  const { data } = imageData;
-  const samples = [
-    0,
-    (width - 1) * 4,
-    ((height - 1) * width) * 4,
-    ((height - 1) * width + width - 1) * 4,
-  ];
-  const bg = samples.reduce(
-    (color, index) => {
-      color.r += data[index];
-      color.g += data[index + 1];
-      color.b += data[index + 2];
-      return color;
-    },
-    { r: 0, g: 0, b: 0 },
-  );
-  bg.r /= samples.length;
-  bg.g /= samples.length;
-  bg.b /= samples.length;
-
-  const visited = new Uint8Array(width * height);
-  const stack = new Int32Array(width * height);
-  let stackLength = 0;
-
-  function isBackground(pixelIndex: number) {
-    const dataIndex = pixelIndex * 4;
-    if (data[dataIndex + 3] === 0) {
-      return true;
-    }
-
-    const dr = data[dataIndex] - bg.r;
-    const dg = data[dataIndex + 1] - bg.g;
-    const db = data[dataIndex + 2] - bg.b;
-    return dr * dr + dg * dg + db * db < 3600;
-  }
-
-  function push(pixelIndex: number) {
-    if (visited[pixelIndex] || !isBackground(pixelIndex)) {
-      return;
-    }
-    visited[pixelIndex] = 1;
-    stack[stackLength] = pixelIndex;
-    stackLength += 1;
-  }
-
-  for (let x = 0; x < width; x += 1) {
-    push(x);
-    push((height - 1) * width + x);
-  }
-  for (let y = 0; y < height; y += 1) {
-    push(y * width);
-    push(y * width + width - 1);
-  }
-
-  while (stackLength > 0) {
-    stackLength -= 1;
-    const pixelIndex = stack[stackLength];
-    const dataIndex = pixelIndex * 4;
-    data[dataIndex + 3] = 0;
-
-    const x = pixelIndex % width;
-    const y = Math.floor(pixelIndex / width);
-    if (x > 0) push(pixelIndex - 1);
-    if (x < width - 1) push(pixelIndex + 1);
-    if (y > 0) push(pixelIndex - width);
-    if (y < height - 1) push(pixelIndex + width);
-  }
+interface SpriteSheetData {
+  meta: { fps?: number };
+  frames: Record<string, SpriteFrame>;
+  animations?: Record<string, string[]>;
 }
 
-function ChromaKeyProfileVideo({ src, onEnded, playback = 'forward' }: { src: string; onEnded: () => void; playback?: 'forward' | 'reverse' }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+function profileSpriteSrc(member: Character) {
+  return member.templateId === 'iris' ? IRIS_SPRITESHEET_URL : null;
+}
+
+function SpriteSheetProfile({ src, fallbackSrc }: { src: string; fallbackSrc: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) {
+    if (!canvas) {
       return undefined;
     }
 
-    const context = canvas.getContext('2d', { willReadFrequently: true });
+    const context = canvas.getContext('2d');
     if (!context) {
       return undefined;
     }
+    const canvasElement = canvas;
+    const canvasContext = context;
 
-    let frameId = 0;
+    let timer = 0;
     let stopped = false;
-    let seekTimer = 0;
-    const handleEnded = () => {
-      onEnded();
-    };
+    const sheetImages = new Map<string, HTMLImageElement>();
 
-    const renderFrame = () => {
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth && video.videoHeight) {
-        const scale = Math.min(1, 760 / video.videoHeight);
-        const width = Math.max(1, Math.round(video.videoWidth * scale));
-        const height = Math.max(1, Math.round(video.videoHeight * scale));
-        if (canvas.width !== width || canvas.height !== height) {
-          canvas.width = width;
-          canvas.height = height;
+    async function loadImage(sheet: string) {
+      const existing = sheetImages.get(sheet);
+      if (existing) {
+        return existing;
+      }
+      const image = new Image();
+      image.src = `${IRIS_SPRITESHEET_BASE}sheets/${sheet}`;
+      await image.decode();
+      sheetImages.set(sheet, image);
+      return image;
+    }
+
+    async function start() {
+      try {
+        const data = await fetch(src).then((response) => {
+          if (!response.ok) {
+            throw new Error(`Failed to load ${src}`);
+          }
+          return response.json() as Promise<SpriteSheetData>;
+        });
+        const frameNames = data.animations?.idle ?? Object.keys(data.frames).sort();
+        const frames = frameNames.map((name) => data.frames[name]).filter(Boolean);
+        if (frames.length === 0) {
+          throw new Error('Empty spritesheet');
         }
-        context.clearRect(0, 0, width, height);
-        context.drawImage(video, 0, 0, width, height);
-        const frame = context.getImageData(0, 0, width, height);
-        removeConnectedVideoBackground(frame, width, height);
-        context.putImageData(frame, 0, 0);
-      }
-    };
 
-    const render = () => {
-      if (stopped) {
-        return;
-      }
-
-      renderFrame();
-
-      frameId = window.requestAnimationFrame(render);
-    };
-
-    if (playback === 'reverse') {
-      const frameStep = 1 / 10;
-      const frameDelay = 1000 / 45;
-
-      const stepBackward = () => {
+        await Promise.all([...new Set(frames.map((frame) => frame.sheet))].map(loadImage));
         if (stopped) {
           return;
         }
-        if (!Number.isFinite(video.duration) || video.duration <= 0 || video.currentTime <= frameStep) {
-          renderFrame();
-          onEnded();
-          return;
+
+        const firstFrame = frames[0];
+        canvasElement.width = firstFrame.sourceSize.w;
+        canvasElement.height = firstFrame.sourceSize.h;
+        let index = 0;
+        const fps = data.meta.fps ?? 12;
+
+        const draw = () => {
+          const frame = frames[index];
+          const image = sheetImages.get(frame.sheet);
+          if (!image) {
+            return;
+          }
+          canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
+          canvasContext.drawImage(
+            image,
+            frame.frame.x,
+            frame.frame.y,
+            frame.frame.w,
+            frame.frame.h,
+            frame.spriteSourceSize.x,
+            frame.spriteSourceSize.y,
+            frame.spriteSourceSize.w,
+            frame.spriteSourceSize.h,
+          );
+          index = (index + 1) % frames.length;
+          timer = window.setTimeout(draw, (frame.duration ?? 1 / fps) * 1000);
+        };
+
+        draw();
+      } catch {
+        if (!stopped) {
+          setFailed(true);
         }
-
-        const nextTime = Math.max(0, video.currentTime - frameStep);
-        video.addEventListener('seeked', () => {
-          renderFrame();
-          seekTimer = window.setTimeout(stepBackward, frameDelay);
-        }, { once: true });
-        video.currentTime = nextTime;
-      };
-
-      const startReverse = () => {
-        if (stopped || !Number.isFinite(video.duration) || video.duration <= 0) {
-          return;
-        }
-        video.pause();
-        video.addEventListener('seeked', () => {
-          renderFrame();
-          seekTimer = window.setTimeout(stepBackward, frameDelay);
-        }, { once: true });
-        video.currentTime = Math.max(0, video.duration - 0.01);
-      };
-
-      if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
-        startReverse();
-      } else {
-        video.addEventListener('loadedmetadata', startReverse, { once: true });
       }
-    } else {
-      void video.play().catch(() => undefined);
-      video.addEventListener('ended', handleEnded);
-      frameId = window.requestAnimationFrame(render);
     }
+
+    void start();
 
     return () => {
       stopped = true;
-      window.clearTimeout(seekTimer);
-      video.removeEventListener('ended', handleEnded);
-      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timer);
     };
-  }, [onEnded, playback, src]);
+  }, [src]);
 
-  return (
-    <>
-      <video ref={videoRef} className="team-profile-source-video" src={src} autoPlay={playback === 'forward'} muted playsInline preload="auto" />
-      <canvas ref={canvasRef} aria-hidden="true" />
-    </>
-  );
+  if (failed) {
+    return <img alt="" src={fallbackSrc} />;
+  }
+
+  return <canvas ref={canvasRef} aria-hidden="true" />;
 }
 
 const PROFILE_COPY: Record<string, { name: string; signature: string; bio: string[]; passive: string; skill: string }> = {
@@ -323,12 +262,7 @@ function TeamProfilePanel({ member, onSwitch }: { member: Character; onSwitch?: 
   const level = member.upgradeLevel ?? 1;
   const maxLevel = maxUpgradeLevel(member.rarity);
   const copy = profileCopy(member);
-  const videoSrc = profileVideoSrc(member);
-  const [videoEnded, setVideoEnded] = useState(false);
-
-  useEffect(() => {
-    setVideoEnded(false);
-  }, [member.id, member.templateId, videoSrc]);
+  const spriteSrc = profileSpriteSrc(member);
 
   return (
     <article className={`team-profile-card rarity-${member.rarity} ${member.injured ? 'injured' : ''}`}>
@@ -373,8 +307,8 @@ function TeamProfilePanel({ member, onSwitch }: { member: Character; onSwitch?: 
       </div>
 
       <div className="team-profile-portrait">
-        {videoSrc && !videoEnded ? (
-          <ChromaKeyProfileVideo key={`${member.id}-${videoSrc}`} src={videoSrc} onEnded={() => setVideoEnded(true)} />
+        {spriteSrc ? (
+          <SpriteSheetProfile key={`${member.id}-${spriteSrc}`} src={spriteSrc} fallbackSrc={portraitSrc(member)} />
         ) : (
           <img
             key={member.templateId}
