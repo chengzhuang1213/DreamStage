@@ -40,7 +40,6 @@ import {
   BossBlessingTransition,
   START_TRANSITION_MS,
   SakuraLayer,
-  SceneParticles,
 } from './components/sceneEffects';
 import { getQuestionEvent } from './questionEvents';
 import { createRun } from './run/createRun';
@@ -980,34 +979,6 @@ function App() {
             : 'scene-map';
   const hasMapScene = run.screen === 'map';
   const hasOverlay = false;
-  const overlayParticleVariant = run.screen === 'battle' && run.battle
-    ? run.battle.type === 'elite'
-      ? 'battle-elite'
-      : run.battle.type === 'boss'
-        ? 'battle-boss'
-        : 'battle-normal'
-    : run.screen === 'shop'
-      ? 'draft-shop'
-      : run.screen === 'rest' || run.screen === 'question'
-        ? 'rest'
-        : run.screen === 'blessing'
-          ? 'blessing'
-          : null;
-  const currentSceneParticle = run.screen === 'team' || run.screen === 'map'
-    ? 'map'
-    : run.screen === 'draft' || run.screen === 'shop'
-      ? 'draft-shop'
-      : run.screen === 'battle' && run.battle
-        ? run.battle.type === 'elite'
-          ? 'battle-elite'
-          : run.battle.type === 'boss'
-            ? 'battle-boss'
-            : 'battle-normal'
-        : run.screen === 'rest' || run.screen === 'question'
-          ? 'rest'
-          : run.screen === 'blessing'
-            ? 'blessing'
-            : null;
 
   return (
     <div
@@ -1018,8 +989,6 @@ function App() {
       <MusicToggleButton muted={musicMuted} onToggle={toggleMusic} className="floating-music-toggle" />
 
       <div className="game-scene" key={run.screen}>
-        {currentSceneParticle && <SceneParticles variant={currentSceneParticle} />}
-
         {run.screen === 'start' && (
           <div className={`viewport-shell home-scene-shell start-shell ${startTransitioning ? 'is-entering' : ''}`}>
             <SakuraLayer />
@@ -1045,7 +1014,6 @@ function App() {
 
         {run.screen === 'draft' && (
           <div className="viewport-shell draft-scene-shell draft-shell">
-            <SceneParticles variant="draft-shop" />
             <DraftScreen
               candidates={run.candidates}
               selectedIds={run.draftSelection}
@@ -1058,7 +1026,6 @@ function App() {
 
         {hasMapScene && (
           <div className="viewport-shell map-scene-shell game-shell map-hud-shell">
-            <SceneParticles variant="map" />
             <main className="main-layout">
               <section className="screen-panel">
                 <MapScreen
@@ -1189,8 +1156,6 @@ function App() {
 
       {hasOverlay && (
         <div className="game-overlay-layer">
-          {overlayParticleVariant && <SceneParticles variant={overlayParticleVariant} />}
-
           {run.screen === 'battle' && run.battle && (
             <div className="game-overlay battle-overlay">
               <section className="game-overlay-panel battle-shell">

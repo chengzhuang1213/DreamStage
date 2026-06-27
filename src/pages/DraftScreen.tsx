@@ -11,6 +11,7 @@ import {
 } from '../game';
 import { BOND_LOGO_SRC, DRAFT_IMAGE_BY_ID } from '../assets';
 import { BondItem, BondTag } from '../components/bonds';
+import { Avatar } from '../components/common';
 import { groupDetail, InfoPill, rarityDetail, roleDetail } from '../components/info';
 import { getCompactAbilityDescription, getUpgradeEffectLines } from '../game/data/upgrades';
 
@@ -117,6 +118,7 @@ function DraftBondPreview({ selectedCharacters }: { selectedCharacters: Characte
 
   return (
     <section className={`draft-bonds ${selectedCharacters.length > 0 ? 'has-selection' : ''}`}>
+      <DraftTeamSlots selectedCharacters={selectedCharacters} />
       <div className="draft-bonds-heading">
         <p className="eyebrow">羁绊说明</p>
         <h3>{selectedCharacters.length > 0 ? '已选成员羁绊' : '选择成员后显示'}</h3>
@@ -160,6 +162,36 @@ function DraftBondPreview({ selectedCharacters }: { selectedCharacters: Characte
         )}
       </div>
     </section>
+  );
+}
+
+function DraftTeamSlots({ selectedCharacters }: { selectedCharacters: CharacterTemplate[] }) {
+  const slots = Array.from({ length: 2 }, (_, index) => selectedCharacters[index] ?? null);
+
+  return (
+    <div className="draft-team-slots" aria-label="开局队伍">
+      <div className="draft-team-slots-heading">
+        <span>当前队伍</span>
+        <strong>{selectedCharacters.length}/2</strong>
+      </div>
+      <div className="draft-team-slot-grid">
+        {slots.map((character, index) => (
+          <div className={`draft-team-slot ${character ? 'filled' : 'empty'}`} key={character?.id ?? `slot-${index}`}>
+            {character ? (
+              <>
+                <Avatar character={character} label={character.name} />
+                <span>{character.name}</span>
+              </>
+            ) : (
+              <>
+                <div className="draft-team-slot-placeholder">+</div>
+                <span>待选成员</span>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
