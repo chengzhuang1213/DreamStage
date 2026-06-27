@@ -51,7 +51,7 @@ export const HERO_ILLUSTRATIONS: Record<string, string> = {
   keke: '/cards/Image/119Tang-Keke-4Tr0Yx.png',
   you: '/cards/Image/17Watanabe-You-En1r2L.png',
   eli: '/cards/Image/1Ayase-Eli-wRbUwD.png',
-  iris: '/cards/Origin_Heros/Iris/Iris_arena.png',
+  iris: '/cards/Origin_Heros/iris/iris_arena.png',
   ren: '/cards/Image/122Hazuki-Ren-fZ9vXK.png',
   yoshiko: '/cards/Image/16Tsushima-Yoshiko-NdFuZH.png',
   nozomi: '/cards/Image/15Toujou-Nozomi-S678cZ.png',

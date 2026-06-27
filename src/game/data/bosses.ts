@@ -38,7 +38,7 @@ export const BOSS_TEMPLATES: BossTemplate[] = [
     price: 0,
     color: '#ef866d',
     accent: '#202020',
-    avatar: '/cards/enemies/14Takami-Chika-RUJSlZ.png',
+    avatar: '/cards/enemies/14Takami-Chika-transparent.png',
     feature: '续航型 Boss，擅长持续恢复。',
     passive: {
       id: 'boss_chika_regen',

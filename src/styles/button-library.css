@@ -4,6 +4,8 @@
 .danger-button {
   position: relative;
   isolation: isolate;
+  display: inline-grid;
+  place-items: center;
   min-height: 54px;
   border: 0 !important;
   border-radius: 999px;
@@ -12,30 +14,37 @@
   background-repeat: no-repeat !important;
   background-size: 100% 100% !important;
   box-shadow: none !important;
-  font-weight: 1000;
+  font-weight: 1000 !important;
+  font-family: var(--font-cn);
   letter-spacing: 0;
   line-height: 1.1;
   padding: 13px 34px 15px;
+  text-align: center;
   transition: filter 180ms ease, transform 180ms ease;
 }
 
 .primary-button {
   background-image: url('/ui/buttons/button-primary.png') !important;
-  color: #fff9ff !important;
-  text-shadow: 0 2px 0 rgba(75, 22, 106, 0.45), 0 0 14px rgba(255, 157, 241, 0.72);
+  color: var(--type-button-normal) !important;
+  text-shadow: var(--type-button-shadow) !important;
 }
 
-.secondary-button,
-.ghost-button {
+.secondary-button {
   background-image: url('/ui/buttons/button-secondary.png') !important;
-  color: #3c255d !important;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.86), 0 0 12px rgba(151, 104, 255, 0.24);
+  color: var(--type-button-normal) !important;
+  text-shadow: var(--type-button-shadow) !important;
+}
+
+.ghost-button {
+  background-image: url('/ui/buttons/button-ghost.png') !important;
+  color: var(--type-button-normal) !important;
+  text-shadow: var(--type-button-shadow) !important;
 }
 
 .danger-button {
   background-image: url('/ui/buttons/button-danger.png') !important;
-  color: #fff8fb !important;
-  text-shadow: 0 2px 0 rgba(104, 15, 56, 0.5), 0 0 16px rgba(255, 134, 205, 0.62);
+  color: var(--type-button-normal) !important;
+  text-shadow: var(--type-button-shadow) !important;
 }
 
 .primary-button:hover:not(:disabled),
@@ -59,7 +68,7 @@
 .ghost-button:disabled,
 .danger-button:disabled {
   background-image: url('/ui/buttons/button-disabled.png') !important;
-  color: rgba(70, 58, 91, 0.68) !important;
+  color: var(--type-button-disabled) !important;
   cursor: not-allowed;
   filter: grayscale(0.1);
   opacity: 0.82;
@@ -114,9 +123,10 @@
   background: url('/ui/buttons/button-secondary-wide.png') center / 100% 100% no-repeat !important;
   box-shadow: none !important;
   color: #3c255d !important;
-  font-weight: 1000;
+  font-weight: 1000 !important;
+  font-family: var(--font-cn);
   letter-spacing: 0;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.88);
+  text-shadow: var(--type-button-shadow) !important;
 }
 
 .map-actions button:hover,

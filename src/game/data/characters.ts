@@ -174,7 +174,7 @@ export const CHARACTER_POOL: CharacterTemplate[] = [
     price: 160,
     color: '#6f63d9',
     accent: '#edf0ff',
-    avatar: '/cards/Origin_Heros/Iris/Iris_Icon.png',
+    avatar: '/cards/Origin_Heros/iris/iris_icon.png',
     passive: {
       id: 'mari_shiny',
       name: '星辉共鸣',

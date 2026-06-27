@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BossTemplate, Character, MapNode } from '../game';
 import {
   GROUP_LABELS,
+  CHARACTER_POOL,
   RARITY_LABELS,
   ROLE_LABELS,
   getActiveBonds,
@@ -37,8 +38,8 @@ function portraitSrc(member: Character) {
   return PROFILE_IMAGE_BY_ID[member.templateId] ?? member.avatar;
 }
 
-const IRIS_SPRITESHEET_URL = '/cards/Origin_Heros/Iris/spritesheet/iris_v2_optimized_spritesheet/iris_idle_v2_spritesheet.json';
-const IRIS_SPRITESHEET_BASE = '/cards/Origin_Heros/Iris/spritesheet/iris_v2_optimized_spritesheet/';
+const IRIS_SPRITESHEET_URL = '/cards/Origin_Heros/iris/spritesheet/iris_v2_optimized_spritesheet/iris_idle_v2_spritesheet.json';
+const IRIS_SPRITESHEET_BASE = '/cards/Origin_Heros/iris/spritesheet/iris_v2_optimized_spritesheet/';
 
 interface SpriteFrame {
   sheet: string;
@@ -58,9 +59,79 @@ function profileSpriteSrc(member: Character) {
   return member.templateId === 'iris' ? IRIS_SPRITESHEET_URL : null;
 }
 
+function removeConnectedSpriteBackground(imageData: ImageData, width: number, height: number) {
+  const { data } = imageData;
+  const samples = [
+    0,
+    (width - 1) * 4,
+    ((height - 1) * width) * 4,
+    ((height - 1) * width + width - 1) * 4,
+  ];
+  const bg = samples.reduce(
+    (color, index) => {
+      color.r += data[index];
+      color.g += data[index + 1];
+      color.b += data[index + 2];
+      return color;
+    },
+    { r: 0, g: 0, b: 0 },
+  );
+  bg.r /= samples.length;
+  bg.g /= samples.length;
+  bg.b /= samples.length;
+
+  const visited = new Uint8Array(width * height);
+  const stack = new Int32Array(width * height);
+  let stackLength = 0;
+
+  function isBackground(pixelIndex: number) {
+    const dataIndex = pixelIndex * 4;
+    if (data[dataIndex + 3] === 0) {
+      return true;
+    }
+
+    const dr = data[dataIndex] - bg.r;
+    const dg = data[dataIndex + 1] - bg.g;
+    const db = data[dataIndex + 2] - bg.b;
+    return dr * dr + dg * dg + db * db < 3600;
+  }
+
+  function push(pixelIndex: number) {
+    if (visited[pixelIndex] || !isBackground(pixelIndex)) {
+      return;
+    }
+    visited[pixelIndex] = 1;
+    stack[stackLength] = pixelIndex;
+    stackLength += 1;
+  }
+
+  for (let x = 0; x < width; x += 1) {
+    push(x);
+    push((height - 1) * width + x);
+  }
+  for (let y = 0; y < height; y += 1) {
+    push(y * width);
+    push(y * width + width - 1);
+  }
+
+  while (stackLength > 0) {
+    stackLength -= 1;
+    const pixelIndex = stack[stackLength];
+    const dataIndex = pixelIndex * 4;
+    data[dataIndex + 3] = 0;
+
+    const x = pixelIndex % width;
+    const y = Math.floor(pixelIndex / width);
+    if (x > 0) push(pixelIndex - 1);
+    if (x < width - 1) push(pixelIndex + 1);
+    if (y > 0) push(pixelIndex - width);
+    if (y < height - 1) push(pixelIndex + width);
+  }
+}
+
 function SpriteSheetProfile({ src, fallbackSrc }: { src: string; fallbackSrc: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [failed, setFailed] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -68,7 +139,7 @@ function SpriteSheetProfile({ src, fallbackSrc }: { src: string; fallbackSrc: st
       return undefined;
     }
 
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context) {
       return undefined;
     }
@@ -134,14 +205,21 @@ function SpriteSheetProfile({ src, fallbackSrc }: { src: string; fallbackSrc: st
             frame.spriteSourceSize.w,
             frame.spriteSourceSize.h,
           );
-          index = (index + 1) % frames.length;
+          const imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
+          removeConnectedSpriteBackground(imageData, canvasElement.width, canvasElement.height);
+          canvasContext.putImageData(imageData, 0, 0);
+          index += 1;
+          if (index >= frames.length) {
+            setShowFallback(true);
+            return;
+          }
           timer = window.setTimeout(draw, (frame.duration ?? 1 / fps) * 1000);
         };
 
         draw();
       } catch {
         if (!stopped) {
-          setFailed(true);
+          setShowFallback(true);
         }
       }
     }
@@ -154,7 +232,7 @@ function SpriteSheetProfile({ src, fallbackSrc }: { src: string; fallbackSrc: st
     };
   }, [src]);
 
-  if (failed) {
+  if (showFallback) {
     return <img alt="" src={fallbackSrc} />;
   }
 
@@ -378,8 +456,20 @@ function TeamMemberCard({ member, featured = false, selected = false, onSelect }
   return <article className={className}>{content}</article>;
 }
 
+function placeTeamSceneTooltip(event: { currentTarget: HTMLElement }, estimatedHeight = 112) {
+  const target = event.currentTarget;
+  const panel = target.closest('.team-scene-bond-panel') ?? target.closest('.team-scene') ?? document.documentElement;
+  const targetRect = target.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const gap = 10;
+  const spaceBelow = panelRect.bottom - targetRect.bottom - gap;
+  const spaceAbove = targetRect.top - panelRect.top - gap;
+  target.dataset.tooltipPlacement = spaceBelow >= estimatedHeight || spaceAbove < estimatedHeight ? 'down' : 'up';
+}
+
 function BondSummary({ team }: { team: Character[] }) {
   const ownedIds = new Set(team.map((member) => member.templateId));
+  const templatesById = new Map(CHARACTER_POOL.map((template) => [template.id, template]));
   const visibleBonds = [
     ...getActiveBonds(team)
       .filter((bond) => bond.count > 0)
@@ -388,9 +478,11 @@ function BondSummary({ team }: { team: Character[] }) {
         name: bond.group.name,
         count: bond.count,
         total: 3,
+        type: 'major' as const,
         active: bond.level > 0,
         memberIds: bond.group.memberIds,
         logoSrc: BOND_LOGO_SRC[bond.group.id],
+        description: `${bond.group.theme}。${bond.group.level2Name}：${bond.group.level2Description} ${bond.group.level3Name}：${bond.group.level3Description}`,
       })),
     ...getActiveSecondaryBonds(team)
       .filter((bond) => bond.count > 0)
@@ -399,11 +491,21 @@ function BondSummary({ team }: { team: Character[] }) {
         name: bond.bond.name,
         count: bond.count,
         total: 2,
+        type: 'secondary' as const,
         active: bond.active,
         memberIds: bond.bond.memberIds,
         logoSrc: BOND_LOGO_SRC[bond.bond.id],
+        description: bond.bond.description,
       })),
-  ].sort((left, right) => Number(right.active) - Number(left.active) || right.count - left.count);
+  ].sort((left, right) => {
+    const rank = (bond: { active: boolean; type: 'major' | 'secondary' }) => {
+      if (bond.active && bond.type === 'major') return 0;
+      if (bond.active && bond.type === 'secondary') return 1;
+      if (!bond.active && bond.type === 'major') return 2;
+      return 3;
+    };
+    return rank(left) - rank(right) || right.count - left.count || right.total - left.total;
+  });
 
   if (visibleBonds.length === 0) {
     return <p className="team-scene-empty">还没有形成羁绊。继续招募，让队伍开始发光。</p>;
@@ -412,16 +514,39 @@ function BondSummary({ team }: { team: Character[] }) {
   return (
     <div className="team-scene-bond-list">
       {visibleBonds.slice(0, 6).map((bond) => (
-        <article className={`team-scene-bond bond-theme-card ${bond.active ? 'active' : ''}`} key={bond.id} style={bondBackgroundStyle(bond.id)}>
+        <article
+          className={`team-scene-bond bond-theme-card ${bond.active ? 'active' : ''}`}
+          data-tooltip={`${bond.name} ${bond.count}/${bond.total}。${bond.description}`}
+          key={bond.id}
+          onFocus={(event) => placeTeamSceneTooltip(event)}
+          onPointerEnter={(event) => placeTeamSceneTooltip(event)}
+          style={bondBackgroundStyle(bond.id)}
+          tabIndex={0}
+        >
           <img src={bond.logoSrc} alt="" />
           <div>
             <strong>{bond.name}</strong>
             <span>{bond.count}/{bond.total}{bond.active ? ' 已激活' : ' 未激活'}</span>
           </div>
           <div className="team-scene-bond-members">
-            {bond.memberIds.slice(0, 4).map((memberId) => (
-              <span className={ownedIds.has(memberId) ? 'owned' : ''} key={memberId} />
-            ))}
+            {[...bond.memberIds]
+              .sort((left, right) => Number(ownedIds.has(right)) - Number(ownedIds.has(left)))
+              .slice(0, 4)
+              .map((memberId) => {
+              const member = templatesById.get(memberId);
+              return member ? (
+                <span
+                  className="team-scene-bond-member-avatar"
+                  data-tooltip={member.name}
+                  key={memberId}
+                  onFocus={(event) => placeTeamSceneTooltip(event, 52)}
+                  onPointerEnter={(event) => placeTeamSceneTooltip(event, 52)}
+                  tabIndex={0}
+                >
+                  <img className={ownedIds.has(memberId) ? 'owned' : ''} src={member.avatar} alt={member.name} />
+                </span>
+              ) : null;
+            })}
           </div>
         </article>
       ))}
@@ -448,7 +573,7 @@ export function TeamScene({ team, gold, boss, nodes, runSeed, onOpenMap, onOpenS
           <h1>队伍休息室</h1>
         </div>
         <div className="team-scene-resources">
-          <span className="coin">金币 {gold}</span>
+          <span className="coin">{gold}</span>
           <span>第 {boss.bossTier} 层</span>
           <span>Seed {runSeed}</span>
         </div>
@@ -520,9 +645,9 @@ export function TeamScene({ team, gold, boss, nodes, runSeed, onOpenMap, onOpenS
           <span>节点进度 {progress.completed}/{progress.total}</span>
           <span>{progress.nextRow ? `下一排：第 ${progress.nextRow} 排` : '等待选择下一条路线'}</span>
         </div>
-          <button className="primary-button team-scene-map-button" type="button" onClick={onOpenMap}>继续巡演 / 打开地图</button>
-          <button className="secondary-button" type="button" onClick={onOpenStats}>查看统计</button>
           <button className="danger-button" type="button" onClick={onRestart}>重新开始</button>
+          <button className="secondary-button" type="button" onClick={onOpenStats}>查看统计</button>
+          <button className="primary-button team-scene-map-button" type="button" onClick={onOpenMap}>继续巡演 / 打开地图</button>
         </aside>
       </main>
     </div>
