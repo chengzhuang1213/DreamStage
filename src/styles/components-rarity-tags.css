@@ -1,0 +1,226 @@
+.character-card.rarity-legendary,
+.compact-character.rarity-legendary,
+.blessing-member-card.rarity-legendary,
+.rest-member-card.rarity-legendary,
+.rest-status-member.rarity-legendary,
+.shop-detail-card.rarity-legendary,
+.enhance-choice.rarity-legendary,
+.damage-meter-row.rarity-legendary,
+.battle-slot.rarity-legendary,
+.battle-mini-item.rarity-legendary {
+  --rarity-border: #d3a21f;
+  --rarity-soft: rgba(211, 162, 31, 0.2);
+  --rarity-bg: linear-gradient(135deg, rgba(255, 248, 216, 0.96), rgba(255, 220, 118, 0.5));
+}
+
+.character-card.rarity-star,
+.compact-character.rarity-star,
+.blessing-member-card.rarity-star,
+.rest-member-card.rarity-star,
+.rest-status-member.rarity-star,
+.shop-detail-card.rarity-star,
+.enhance-choice.rarity-star,
+.damage-meter-row.rarity-star,
+.battle-slot.rarity-star,
+.battle-mini-item.rarity-star {
+  --rarity-border: #8e5ad7;
+  --rarity-soft: rgba(142, 90, 215, 0.18);
+  --rarity-bg: linear-gradient(135deg, rgba(247, 241, 255, 0.96), rgba(202, 168, 242, 0.48));
+}
+
+.character-card.rarity-normal,
+.compact-character.rarity-normal,
+.blessing-member-card.rarity-normal,
+.rest-member-card.rarity-normal,
+.rest-status-member.rarity-normal,
+.shop-detail-card.rarity-normal,
+.enhance-choice.rarity-normal,
+.damage-meter-row.rarity-normal,
+.battle-slot.rarity-normal,
+.battle-mini-item.rarity-normal {
+  --rarity-border: #9ed4f0;
+  --rarity-soft: rgba(82, 166, 211, 0.2);
+  --rarity-bg: linear-gradient(135deg, rgba(237, 250, 255, 0.96), rgba(190, 229, 247, 0.52));
+}
+
+.character-card.rarity-enemy {
+  --rarity-border: #6fbf5f;
+  --rarity-soft: rgba(111, 191, 95, 0.16);
+}
+
+.character-card.rarity-elite {
+  --rarity-border: #a64a2c;
+  --rarity-soft: rgba(166, 74, 44, 0.18);
+}
+
+.character-card.rarity-boss {
+  --rarity-border: #111111;
+  --rarity-soft: rgba(17, 17, 17, 0.16);
+}
+
+.character-card.rarity-legendary,
+.character-card.rarity-star,
+.character-card.rarity-normal,
+.compact-character.rarity-legendary,
+.compact-character.rarity-star,
+.compact-character.rarity-normal,
+.blessing-member-card.rarity-legendary,
+.blessing-member-card.rarity-star,
+.blessing-member-card.rarity-normal,
+.rest-member-card.rarity-legendary,
+.rest-member-card.rarity-star,
+.rest-member-card.rarity-normal,
+.rest-status-member.rarity-legendary,
+.rest-status-member.rarity-star,
+.rest-status-member.rarity-normal,
+.shop-detail-card.rarity-legendary,
+.shop-detail-card.rarity-star,
+.shop-detail-card.rarity-normal,
+.enhance-choice.rarity-legendary,
+.enhance-choice.rarity-star,
+.enhance-choice.rarity-normal,
+.damage-meter-row.rarity-legendary,
+.damage-meter-row.rarity-star,
+.damage-meter-row.rarity-normal,
+.battle-slot.rarity-legendary,
+.battle-slot.rarity-star,
+.battle-slot.rarity-normal,
+.battle-mini-item.rarity-legendary,
+.battle-mini-item.rarity-star,
+.battle-mini-item.rarity-normal {
+  background: var(--rarity-bg, rgba(255, 255, 255, 0.94));
+}
+
+.character-card.rarity-legendary,
+.character-card.rarity-star,
+.character-card.rarity-normal,
+.character-card.rarity-enemy,
+.character-card.rarity-elite,
+.character-card.rarity-boss {
+  border: 2px solid var(--rarity-border);
+  box-shadow:
+    0 0 0 1px rgba(99, 113, 135, 0.28),
+    inset 0 -4px 0 var(--rarity-soft);
+}
+
+.character-card.rarity-legendary:hover:not(:disabled),
+.character-card.rarity-star:hover:not(:disabled),
+.character-card.rarity-normal:hover:not(:disabled),
+.character-card.rarity-enemy:hover:not(:disabled),
+.character-card.rarity-elite:hover:not(:disabled),
+.character-card.rarity-boss:hover:not(:disabled),
+.character-card.rarity-legendary.selected,
+.character-card.rarity-star.selected,
+.character-card.rarity-normal.selected,
+.character-card.rarity-enemy.selected,
+.character-card.rarity-elite.selected,
+.character-card.rarity-boss.selected {
+  border-color: var(--rarity-border);
+  outline: 2px solid #e4543f;
+  outline-offset: 2px;
+  box-shadow:
+    0 12px 30px rgba(228, 84, 63, 0.16),
+    inset 0 -4px 0 var(--rarity-soft);
+}
+
+.character-card.rarity-legendary .avatar,
+.character-card.rarity-star .avatar,
+.character-card.rarity-normal .avatar,
+.character-card.rarity-enemy .avatar,
+.character-card.rarity-elite .avatar,
+.character-card.rarity-boss .avatar,
+.compact-character.rarity-legendary .avatar,
+.compact-character.rarity-star .avatar,
+.compact-character.rarity-normal .avatar {
+  border-color: var(--rarity-border);
+  box-shadow: 0 0 0 1px rgba(99, 113, 135, 0.24);
+}
+
+.compact-character.rarity-legendary,
+.compact-character.rarity-star,
+.compact-character.rarity-normal {
+  border: 2px solid var(--rarity-border);
+  box-shadow: 0 0 0 1px rgba(99, 113, 135, 0.2);
+}
+
+.card-tags {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.card-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+}
+
+.card-tag-row.meta-row {
+  min-height: 26px;
+}
+
+.card-tags .group-tag,
+.card-tags .rarity-tag {
+  margin-bottom: 0;
+}
+
+.bond-tag {
+  position: relative;
+  border: 0;
+  cursor: default;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0)),
+    var(--bond-bg-image, none) center / cover no-repeat,
+    #f1e8ff;
+  color: #3b3151;
+  box-shadow: inset 0 0 0 1px rgba(123, 88, 166, 0.22);
+}
+
+.bond-tag .bond-member-popover {
+  left: 0;
+  top: calc(100% + 8px);
+  text-transform: none;
+}
+
+.rarity-tag {
+  display: inline-block;
+  width: fit-content;
+  border: 1px solid var(--rarity-border, #d9e2ed);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.rarity-tag.rarity-legendary {
+  background: #fff3bd;
+  color: #755000;
+}
+
+.rarity-tag.rarity-star {
+  background: #efe4ff;
+  color: #5b3295;
+}
+
+.rarity-tag.rarity-normal {
+  background: #ffffff;
+  color: #596579;
+  box-shadow: inset 0 0 0 1px #d6deea;
+}
+
+.rarity-tag.rarity-enemy {
+  background: #edf9ea;
+  color: #37702c;
+}
+
+.rarity-tag.rarity-elite {
+  background: #fff0e7;
+  color: #8b351d;
+}
+
+.rarity-tag.rarity-boss {
+  background: #111111;
+  color: #ffffff;
+}

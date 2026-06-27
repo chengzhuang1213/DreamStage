@@ -1,0 +1,126 @@
+@keyframes map-stage-enter {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  62% {
+    opacity: 1;
+    transform: scale(1.012);
+  }
+  100% {
+    opacity: 0.72;
+    transform: scale(1.035);
+  }
+}
+
+@keyframes node-enter-burst {
+  0% {
+    transform: translate(-50%, -48%) scale(1.08);
+  }
+  42% {
+    transform: translate(-50%, -50%) scale(1.34);
+  }
+  100% {
+    transform: translate(-50%, -48%) scale(1.16);
+  }
+}
+
+@keyframes node-icon-bloom {
+  0% {
+    opacity: 0.92;
+    transform: scale(1);
+  }
+  48% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 0.96;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes node-complete-pulse {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -48%) scale(1.08);
+  }
+  42% {
+    opacity: 1;
+    transform: translate(-50%, -48%) scale(1.18);
+  }
+  100% {
+    opacity: 0.48;
+    transform: translate(-50%, -48%) scale(1.04);
+  }
+}
+
+@keyframes node-available-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(255, 224, 127, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(255, 224, 127, 0.48));
+  }
+}
+
+@keyframes route-advance-flash {
+  0% {
+    opacity: 0.48;
+    transform: scale(1);
+  }
+  36% {
+    opacity: 1;
+    transform: scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes resource-pop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  38% {
+    transform: translateY(-4px) scale(1.1);
+    box-shadow: 0 0 0 5px rgba(255, 224, 138, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes member-fly-in {
+  0% {
+    opacity: 0;
+    transform: translate(72px, -38px) scale(0.62) rotate(3deg);
+  }
+  64% {
+    opacity: 1;
+    transform: translate(-4px, 2px) scale(1.08) rotate(-1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0);
+  }
+}
+
+@keyframes bond-activate-flash {
+  0% {
+    transform: scale(1);
+  }
+  34% {
+    transform: scale(1.08);
+    border-color: rgba(255, 226, 127, 0.9);
+    background: rgba(78, 45, 103, 0.88);
+    box-shadow:
+      0 0 0 4px rgba(255, 226, 127, 0.18),
+      0 0 24px rgba(255, 122, 185, 0.45);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

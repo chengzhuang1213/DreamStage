@@ -1,0 +1,46 @@
+@media (max-width: 420px) {
+  .shop-offer-card {
+    grid-template-columns: 88px minmax(0, 1fr) 68px;
+    height: 126px;
+  }
+
+  .shop-offer-body {
+    padding: 10px 8px;
+  }
+
+  .shop-offer-body h3 {
+    font-size: 1.08rem;
+  }
+
+  .shop-offer-stats {
+    gap: 7px;
+    font-size: 0.76rem;
+  }
+
+  .rest-blessing-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .rest-usage-card,
+  .blessing-chance-card {
+    grid-template-columns: repeat(3, auto);
+    align-items: center;
+  }
+
+  .rest-action-card {
+    grid-template-columns: 48px minmax(0, 1fr) 52px;
+  }
+
+  .rest-action-card img {
+    width: 44px;
+  }
+
+  .blessing-member-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .blessing-status-card {
+    grid-column: 1 / -1;
+    min-height: 34px;
+  }
+}

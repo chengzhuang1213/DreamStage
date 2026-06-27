@@ -978,7 +978,6 @@ function App() {
             ? 'scene-team'
             : 'scene-map';
   const hasMapScene = run.screen === 'map';
-  const hasOverlay = false;
 
   return (
     <div
@@ -1153,129 +1152,6 @@ function App() {
       </div>
 
       <div className={`scene-blackout ${sceneTransitioning ? 'active' : ''}`} aria-hidden="true" />
-
-      {hasOverlay && (
-        <div className="game-overlay-layer">
-          {run.screen === 'battle' && run.battle && (
-            <div className="game-overlay battle-overlay">
-              <section className="game-overlay-panel battle-shell">
-                <BattleScreen
-                  battle={run.battle}
-                  boss={run.boss}
-                  gold={run.gold}
-                  team={run.team}
-                  pendingEnhance={run.enhanceReady ? run.pendingEnhance : null}
-                  pendingBossVictory={run.pendingBossVictory}
-                  onContinue={finishCurrentNode}
-                  onToggleSelection={toggleBattleSelection}
-                  onStart={startBattle}
-                  onEnhance={completeEnhancement}
-                  onDismissEnhancement={dismissEnhancement}
-                  onBossBack={dismissBossVictory}
-                  onBossBlessing={enterBossBlessing}
-                  onReplayDone={handleBattleReplayDone}
-                  hasPendingEnhance={Boolean(run.pendingEnhance && run.battle.phase === 'won')}
-                  onOpenEnhancement={openPendingEnhancement}
-                />
-              </section>
-            </div>
-          )}
-
-          {run.screen === 'result' && run.result && run.battle && (
-            <div className="game-overlay result-overlay">
-              <section className="game-overlay-panel">
-                <ResultScreen result={run.result} log={run.battle.log} stats={run.battle.stats} team={run.team} onContinue={finishCurrentNode} />
-              </section>
-            </div>
-          )}
-
-          {run.screen === 'shop' && (
-            <div className="game-overlay shop-overlay">
-              <section className="game-overlay-panel shop-shell">
-                <ShopScreen
-                  gold={run.gold}
-                  offers={run.shopOffers}
-                  team={run.team}
-                  selectedOffer={shopSelectedOffer}
-                  onSelectOffer={setShopSelectedOffer}
-                  onBuy={buyCharacter}
-                  onLeave={finishCurrentNode}
-                />
-              </section>
-            </div>
-          )}
-
-          {run.screen === 'rest' && (
-            <div className="game-overlay rest-overlay">
-              <section className="game-overlay-panel rest-shell">
-                <RestScreen
-                  gold={run.gold}
-                  team={run.team}
-                  healUsed={run.restHealUsed}
-                  reviveUsed={run.restReviveUsed}
-                  onHeal={healCharacter}
-                  onRevive={reviveCharacter}
-                  onLeave={finishCurrentNode}
-                />
-              </section>
-            </div>
-          )}
-
-          {run.screen === 'question' && (
-            <div className="game-overlay question-overlay">
-              <section className="game-overlay-panel">
-                <QuestionScreen
-                  event={currentQuestionEvent}
-                  gold={run.gold}
-                  team={run.team}
-                  canUseGacha={canUseMysteryGacha(run.team, run.gold)}
-                  onResolve={resolveQuestionEvent}
-                />
-              </section>
-            </div>
-          )}
-
-          {run.screen === 'blessing' && (
-            <div className="game-overlay blessing-overlay">
-              <section className="game-overlay-panel">
-                <BlessingScreen team={run.team} tier={run.boss.bossTier} onContinue={continueFromBlessing} />
-              </section>
-            </div>
-          )}
-
-          {run.screen === 'win' && run.battle && (
-            <div className="game-overlay end-overlay">
-              <section className="game-overlay-panel">
-                <EndScreen
-                  title="胜利"
-                  body="Boss 战完成，Beta 角色构筑循环已经跑通。"
-                  log={run.battle.log}
-                  stats={run.battle.stats}
-                  team={run.team}
-                  onRestart={resetRun}
-                />
-              </section>
-            </div>
-          )}
-
-          {run.screen === 'loss' && (
-            <div className="game-overlay end-overlay">
-              <section className="game-overlay-panel">
-                <EndScreen
-                  title="失败"
-                  body="所有伙伴都进入重伤状态。下一局可以更早休息或招募。"
-                  log={run.battle?.log ?? []}
-                  enemies={run.battle?.enemies ?? []}
-                  stats={run.battle?.stats}
-                  team={run.team}
-                  onRetryBattle={run.battle?.type === 'boss' && run.bossRetrySnapshot ? retryBossBattle : undefined}
-                  onRestart={resetRun}
-                />
-              </section>
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="game-system-layer">
         {bossBlessingTransitioning && <BossBlessingTransition team={run.team} />}

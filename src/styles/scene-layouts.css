@@ -1,0 +1,27 @@
+/* Shared concept-scene refresh */
+.scene-team {
+  --scene-bg: url('/backgrounds/rest-blessing.png');
+}
+
+.team-scene-shell,
+.shop-scene-shell,
+.draft-scene-shell {
+  padding: clamp(18px, 2.6vw, 42px);
+}
+
+.team-scene-shell {
+  padding: 0;
+}
+
+.team-scene::before,
+.shop-screen::before,
+.draft-page::before {
+  content: "";
+  position: absolute;
+  inset: -60px;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(6, 12, 30, 0.72), rgba(8, 13, 30, 0.26) 52%, rgba(6, 12, 30, 0.7)),
+    radial-gradient(circle at 68% 28%, rgba(255, 126, 205, 0.22), transparent 28%);
+  pointer-events: none;
+}

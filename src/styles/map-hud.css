@@ -1,0 +1,389 @@
+.hud-card {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.team-dock,
+.bond-progress-dock {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.compact-run-side-panel {
+  gap: 16px;
+  background: transparent !important;
+  color: #f7fbff;
+}
+
+.compact-run-side-panel .hud-card {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.compact-run-side-panel .team-dock-member.injured {
+  opacity: 0.58;
+  filter: grayscale(0.7);
+}
+
+.compact-run-side-panel .hud-card-heading h3,
+.compact-run-side-panel .hud-card-heading span {
+  color: #ffffff;
+}
+
+.hud-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 10px;
+  border: 0;
+  background: transparent;
+  padding: 0 2px;
+  color: #dcecff;
+  font-weight: 900;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.team-dock-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.map-top-info-bar .hud-card-heading {
+  margin-bottom: 6px;
+}
+
+.map-top-info-bar .team-dock-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.team-dock-member,
+.team-empty-slot {
+  position: relative;
+  z-index: 1;
+  min-height: 88px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  background: rgba(20, 38, 70, 0.42);
+  padding: 7px;
+  text-align: center;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px) saturate(1.2);
+}
+
+.map-top-info-bar .team-dock-member,
+.map-top-info-bar .team-empty-slot {
+  min-height: 58px;
+  border-radius: 10px;
+  padding: 5px;
+}
+
+.map-top-info-bar .team-dock-member .avatar {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 2px;
+  border-radius: 8px;
+}
+
+.map-top-info-bar .team-dock-member span {
+  margin-top: 2px;
+  font-size: 0.68rem;
+}
+
+.map-top-info-bar .team-empty-slot span {
+  font-size: 1.35rem;
+}
+
+.team-dock-member.rarity-normal {
+  border-color: rgba(158, 219, 255, 0.58);
+  background:
+    linear-gradient(135deg, rgba(95, 157, 205, 0.62), rgba(37, 82, 135, 0.48)),
+    rgba(35, 76, 126, 0.52);
+}
+
+.team-dock-member.rarity-star {
+  border-color: rgba(221, 180, 255, 0.66);
+  background:
+    linear-gradient(135deg, rgba(138, 77, 200, 0.68), rgba(72, 42, 134, 0.52)),
+    rgba(74, 42, 133, 0.56);
+}
+
+.team-dock-member.rarity-legendary {
+  border-color: rgba(255, 230, 132, 0.72);
+  background:
+    linear-gradient(135deg, rgba(219, 160, 45, 0.72), rgba(116, 70, 18, 0.54)),
+    rgba(128, 82, 22, 0.58);
+}
+
+.team-dock-member.rarity-normal,
+.team-dock-member.rarity-star,
+.team-dock-member.rarity-legendary {
+  box-shadow:
+    0 9px 24px rgba(0, 0, 0, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.team-dock-member.new-member {
+  animation: member-fly-in 840ms cubic-bezier(0.2, 0.88, 0.18, 1.12) both;
+  z-index: 4;
+}
+
+.team-dock-member .avatar {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 5px;
+  border-radius: 10px;
+}
+
+.team-dock-member span,
+.team-empty-slot {
+  display: block;
+}
+
+.team-dock-member span {
+  margin-top: 4px;
+  color: #ffc8db;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.dock-popover {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 0;
+  z-index: 999;
+  display: none;
+  min-width: 230px;
+  max-width: 300px;
+  border: 1px solid rgba(204, 222, 255, 0.42);
+  border-radius: 10px;
+  background: rgba(13, 27, 55, 0.96);
+  color: #f7fbff;
+  padding: 10px;
+  text-align: left;
+  box-shadow: 0 18px 42px rgba(8, 17, 35, 0.32);
+}
+
+.bond-dock-popover {
+  --bond-bg-position: center;
+  --bond-bg-size: 100% 100%;
+  border-color: rgba(216, 225, 238, 0.92);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.64), rgba(255, 255, 255, 0.24)),
+    var(--bond-bg-image, none) var(--bond-bg-position) / var(--bond-bg-size) no-repeat,
+    #ffffff;
+  color: #202633;
+  box-shadow: 0 18px 42px rgba(33, 44, 65, 0.18);
+}
+
+.team-dock-member:hover .dock-popover,
+.team-dock-member:focus-within .dock-popover,
+.team-dock-member:focus .dock-popover,
+.bond-progress-row:hover .dock-popover,
+.bond-progress-row:focus-within .dock-popover,
+.bond-progress-row:focus .dock-popover {
+  display: grid;
+  gap: 5px;
+}
+
+.dock-popover strong,
+.dock-popover small,
+.dock-popover span {
+  display: block;
+}
+
+.dock-popover strong {
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+.dock-popover small,
+.dock-popover span {
+  color: #d6e3fb;
+  font-size: 0.78rem;
+  line-height: 1.42;
+}
+
+.bond-dock-popover strong {
+  color: #202633;
+}
+
+.bond-dock-popover span,
+.bond-dock-popover small {
+  color: #596579;
+}
+
+.dock-member-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(214, 227, 251, 0.16);
+  padding-top: 8px;
+}
+
+.dock-member-grid .bond-member span {
+  color: #f7fbff;
+}
+
+.dock-member-grid .bond-member.missing .avatar {
+  filter: grayscale(1);
+  opacity: 0.36;
+}
+
+.team-empty-slot {
+  display: grid;
+  place-items: center;
+  color: #b9c8e2;
+  font-weight: 900;
+}
+
+.team-empty-slot span {
+  display: block;
+  color: #a9bad8;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.hud-wide-button {
+  width: 100%;
+  min-height: 40px;
+  margin: 12px auto 0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  background: rgba(20, 38, 70, 0.45);
+  color: #f7fbff;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px) saturate(1.2);
+}
+
+.map-top-info-bar .hud-wide-button {
+  min-height: 28px;
+  margin-top: 7px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+}
+
+.bond-progress-list {
+  display: grid;
+  gap: 10px;
+}
+
+.map-top-info-bar .bond-progress-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.bond-progress-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  background: rgba(20, 38, 70, 0.42);
+  padding: 6px 8px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px) saturate(1.2);
+}
+
+.map-top-info-bar .bond-progress-row {
+  grid-template-columns: 32px minmax(0, 1fr);
+  min-height: 32px;
+  border-radius: 10px;
+  padding: 3px 6px;
+}
+
+.map-top-info-bar .bond-dot {
+  width: 32px;
+  height: 26px;
+}
+
+.map-top-info-bar .bond-dot img {
+  width: 34px;
+  height: 26px;
+}
+
+.map-top-info-bar .bond-progress-row em {
+  font-size: 0.78rem;
+}
+
+.team-dock-member:hover,
+.team-dock-member:focus-within,
+.team-dock-member:focus,
+.bond-progress-row:hover,
+.bond-progress-row:focus-within,
+.bond-progress-row:focus {
+  z-index: 120;
+}
+
+.team-dock-member:hover,
+.team-dock-member:focus-within,
+.team-dock-member:focus {
+  z-index: 180;
+}
+
+.bond-progress-row.bond-theme-card {
+  --bond-bg-position: center;
+  --bond-bg-size: 100% 100%;
+  background: rgba(20, 38, 70, 0.42);
+}
+
+.bond-progress-row.inactive {
+  opacity: 0.68;
+  filter: saturate(0.72);
+}
+
+.bond-progress-row.active {
+  border-color: rgba(255, 255, 255, 0.34);
+  background:
+    linear-gradient(90deg, rgba(8, 16, 35, 0.18), rgba(255, 255, 255, 0.06)),
+    var(--bond-bg-image, none) var(--bond-bg-position) / var(--bond-bg-size) no-repeat,
+    rgba(20, 38, 70, 0.5);
+  box-shadow: 0 9px 24px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  filter: saturate(1.12) contrast(1.05);
+}
+
+.bond-progress-row.bond-flash {
+  animation: bond-activate-flash 980ms ease both;
+}
+
+.bond-dot {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 32px;
+  overflow: visible;
+}
+
+.bond-dot img {
+  width: 44px;
+  height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.22));
+}
+
+.bond-progress-row em {
+  color: #f5f8ff;
+  font-size: 0.94rem;
+  font-style: normal;
+  font-weight: 900;
+  text-align: left;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+}

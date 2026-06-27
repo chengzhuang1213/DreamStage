@@ -1,0 +1,300 @@
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.compact-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.character-card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  min-height: 154px;
+  padding: 13px;
+  border: 1px solid #d9e2ed;
+  border-radius: 8px;
+  background: #ffffff;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.character-card:hover:not(:disabled),
+.character-card.selected {
+  position: relative;
+  z-index: 6;
+  border-color: #e4543f;
+  box-shadow: 0 12px 30px rgba(228, 84, 63, 0.16);
+  transform: translateY(-1px);
+}
+
+.character-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
+}
+
+.character-card.injured {
+  background: #f7f8fb;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: visible;
+  width: 64px;
+  height: 64px;
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--tone) 88%, #ffffff), var(--tone)),
+    #ffffff;
+  color: #ffffff;
+  font-size: 1.4rem;
+  font-weight: 900;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.avatar-fallback {
+  position: relative;
+  z-index: 0;
+}
+
+.avatar-image {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.avatar.small {
+  width: 44px;
+  height: 44px;
+  border-width: 2px;
+  font-size: 1.05rem;
+}
+
+.card-copy {
+  position: relative;
+  min-width: 0;
+}
+
+.card-copy strong,
+.compact-copy strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 1.05rem;
+}
+
+.card-copy span,
+.card-copy small,
+.compact-copy span {
+  display: block;
+  color: #596579;
+  line-height: 1.45;
+}
+
+.card-copy small {
+  margin-top: 8px;
+}
+
+.card-copy > span,
+.card-copy > small {
+  border: 1px solid rgba(216, 225, 238, 0.95);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.82);
+  padding: 7px 8px;
+}
+
+.card-copy > small.skill-preview-trigger {
+  height: 82px;
+  overflow: hidden;
+}
+
+.card-copy > span + span,
+.card-copy > span + small,
+.card-copy > small + small,
+.card-copy > small + em {
+  margin-top: 8px;
+}
+
+.card-copy > span:first-of-type {
+  font-weight: 800;
+}
+
+.character-card.rarity-legendary .card-copy > span,
+.character-card.rarity-legendary .card-copy > small {
+  border-color: rgba(151, 103, 0, 0.26);
+  background: rgba(255, 255, 255, 0.44);
+}
+
+.group-tag {
+  display: inline-block;
+  width: fit-content;
+  margin: 0 0 7px;
+  border-radius: 999px;
+  background: #f1e8ff;
+  color: #6335a0;
+  box-shadow: inset 0 0 0 1px rgba(142, 90, 215, 0.24);
+  padding: 3px 8px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.info-pill,
+.level-badge[data-tooltip],
+.resource-pill[data-tooltip],
+.boss-type-pill[data-tooltip],
+.battle-resource-pills span[data-tooltip] {
+  position: relative;
+  cursor: help;
+}
+
+.info-pill::after,
+.level-badge[data-tooltip]::after,
+.resource-pill[data-tooltip]::after,
+.boss-type-pill[data-tooltip]::after,
+.battle-resource-pills span[data-tooltip]::after {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 80;
+  display: none;
+  width: max-content;
+  max-width: min(280px, 72vw);
+  border: 1px solid #d8e1ee;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 42px rgba(33, 44, 65, 0.2);
+  padding: 9px 10px;
+  color: #25304d;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  content: attr(data-tooltip);
+}
+
+.info-pill:hover::after,
+.info-pill:focus::after,
+.level-badge[data-tooltip]:hover::after,
+.level-badge[data-tooltip]:focus::after,
+.resource-pill[data-tooltip]:hover::after,
+.resource-pill[data-tooltip]:focus::after,
+.boss-type-pill[data-tooltip]:hover::after,
+.boss-type-pill[data-tooltip]:focus::after,
+.battle-resource-pills span[data-tooltip]:hover::after,
+.battle-resource-pills span[data-tooltip]:focus::after {
+  display: block;
+}
+
+.secondary-bond-tag {
+  background: #e7f1ff;
+  color: #245f9f;
+  box-shadow: inset 0 0 0 1px rgba(67, 139, 220, 0.28);
+}
+
+.character-name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.character-name-line.compact {
+  gap: 6px;
+}
+
+.level-badge {
+  display: inline;
+  min-width: 0;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #6335a0;
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: inherit;
+  white-space: nowrap;
+}
+
+.compact .level-badge {
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  font-size: 0.78rem;
+}
+
+.card-copy em {
+  display: inline-block;
+  margin-top: 10px;
+  color: #e4543f;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.action-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.primary-button,
+.secondary-button,
+.ghost-button {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  min-height: 42px;
+  padding: 10px 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primary-button {
+  background: #202633;
+  color: #ffffff;
+}
+
+.secondary-button {
+  background: #ffffff;
+  border-color: #d8e1ee;
+  color: #202633;
+}
+
+.ghost-button {
+  min-height: 36px;
+  padding: 8px 10px;
+  background: #eff3f8;
+  color: #394255;
+}
+
+.primary-button:hover:not(:disabled),
+.secondary-button:hover:not(:disabled),
+.ghost-button:hover:not(:disabled) {
+  border-color: #e4543f;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.wide-button {
+  width: 100%;
+  margin-top: 14px;
+}

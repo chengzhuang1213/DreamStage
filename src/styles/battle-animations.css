@@ -1,0 +1,246 @@
+@keyframes battle-standee-lunge {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(-8px) scale(1.04);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes battle-standee-hit {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  24% {
+    transform: translateX(-10px);
+  }
+  48% {
+    transform: translateX(7px);
+  }
+  72% {
+    transform: translateX(-4px);
+  }
+}
+
+@keyframes battle-attack-lunge-up {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  43% {
+    transform: translateY(calc(-1 * var(--attack-lunge-distance))) scale(1.045);
+  }
+  50% {
+    transform: translateY(calc(-1 * var(--attack-lunge-distance))) scale(1.045);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes battle-attack-lunge-down {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  43% {
+    transform: translateY(var(--attack-lunge-distance)) scale(1.045);
+  }
+  50% {
+    transform: translateY(var(--attack-lunge-distance)) scale(1.045);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes battle-critical-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 50%) scale(0.3) rotate(-12deg);
+  }
+  24% {
+    opacity: 1;
+    transform: translate(-50%, 50%) scale(1.18) rotate(4deg);
+  }
+  52% {
+    opacity: 0.94;
+    transform: translate(-50%, 50%) scale(0.96) rotate(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 50%) scale(1.34) rotate(8deg);
+  }
+}
+
+@keyframes battle-shield-gain {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.56, 0.35);
+    filter:
+      brightness(1.45)
+      drop-shadow(0 0 4px rgba(126, 226, 255, 0.92))
+      drop-shadow(0 0 10px rgba(38, 126, 255, 0.48));
+  }
+
+  24% {
+    opacity: 0.96;
+    transform: translateX(-50%) scale(1.06, 1.02);
+  }
+
+  52% {
+    opacity: 0.82;
+    transform: translateX(-50%) scale(1);
+    filter:
+      brightness(1.08)
+      drop-shadow(0 0 12px rgba(75, 199, 255, 0.92))
+      drop-shadow(0 0 28px rgba(38, 126, 255, 0.62));
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1.04);
+    filter:
+      brightness(1)
+      drop-shadow(0 0 8px rgba(75, 199, 255, 0.36))
+      drop-shadow(0 0 18px rgba(38, 126, 255, 0.18));
+  }
+}
+
+@keyframes battle-shield-break {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.58);
+    filter:
+      brightness(1.7)
+      drop-shadow(0 0 4px rgba(194, 245, 255, 1))
+      drop-shadow(0 0 12px rgba(35, 122, 255, 0.52));
+  }
+
+  18% {
+    opacity: 1;
+    transform: translateX(-50%) scale(0.94);
+  }
+
+  46% {
+    opacity: 0.94;
+    transform: translateX(-50%) scale(1.12);
+    filter:
+      brightness(1.12)
+      drop-shadow(0 0 13px rgba(83, 206, 255, 0.92))
+      drop-shadow(0 0 30px rgba(35, 122, 255, 0.66));
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1.24);
+    filter:
+      brightness(0.98)
+      drop-shadow(0 0 7px rgba(83, 206, 255, 0.3))
+      drop-shadow(0 0 16px rgba(35, 122, 255, 0.12));
+  }
+}
+
+@keyframes battle-lunge {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  38% {
+    transform: translateY(-5px) scale(1.025);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes battle-hit-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes battle-float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.84);
+  }
+  16% {
+    opacity: 1;
+    transform: translateY(0) scale(1.16);
+  }
+  72% {
+    opacity: 1;
+    transform: translateY(-18px) scale(1.06);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-48px) scale(1);
+  }
+}
+
+@keyframes battle-skill-callout {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.82);
+  }
+  16% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.08);
+  }
+  28%,
+  72% {
+    opacity: 1;
+    transform: translate(-50%, -2px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -18px) scale(0.96);
+  }
+}
+
+@keyframes battle-skill-callout-side {
+  0% {
+    opacity: 0;
+    transform: translate(10px, 6px) scale(0.86);
+  }
+  16% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.06);
+  }
+  28%,
+  72% {
+    opacity: 1;
+    transform: translate(0, -1px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(14px, -8px) scale(0.96);
+  }
+}
+
+@media (max-width: 980px) {
+  .battle-standee {
+    --callout-bottom: min(var(--callout-bottom, 188px), 178px);
+  }
+
+  .battle-selection-top {
+    grid-template-columns: 1fr;
+  }
+
+  .battle-slot-actions {
+    min-height: 84px;
+  }
+}

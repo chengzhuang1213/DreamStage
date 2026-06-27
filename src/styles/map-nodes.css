@@ -1,0 +1,115 @@
+.map-hud-shell .map-node {
+  position: absolute;
+  left: var(--node-x);
+  top: var(--node-y);
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  gap: 0;
+  width: 184px;
+  min-height: 172px;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  opacity: 1;
+  filter: none;
+  transform: translate(-50%, -48%);
+}
+
+
+.map-hud-shell .map-node.node-boss {
+  transform: translate(-50%, -48%);
+}
+.map-hud-shell .map-node.available {
+  opacity: 1;
+  filter: none;
+  animation: node-available-glow 1800ms ease-in-out infinite;
+}
+
+.map-hud-shell .map-node.completed {
+  opacity: 0.48;
+  filter: grayscale(1) saturate(0.28) brightness(0.72);
+}
+
+.map-hud-shell .map-node.skipped {
+  opacity: 0.36;
+  filter: grayscale(1) saturate(0.16) brightness(0.64);
+}
+
+.map-hud-shell .map-node.entering {
+  z-index: 6;
+  pointer-events: none;
+  animation: node-enter-burst 440ms ease both;
+}
+
+.map-hud-shell .map-node.just-completed {
+  animation: node-complete-pulse 900ms ease-out both;
+}
+
+.map-hud-shell .map-node:not(:disabled) {
+  box-shadow: none;
+  transform: translate(-50%, -48%) scale(1.08);
+}
+
+.node-orb {
+  display: grid;
+  place-items: center;
+  width: 176px;
+  height: 164px;
+  color: #ffffff;
+  filter:
+    drop-shadow(0 12px 18px rgba(20, 18, 48, 0.42))
+    drop-shadow(0 0 10px rgba(255, 128, 198, 0.32));
+}
+
+.map-node.node-boss .node-orb {
+  width: 190px;
+  height: 176px;
+}
+
+.node-icon-art {
+  width: 162px;
+  height: 162px;
+  object-fit: contain;
+  display: block;
+  opacity: 0.98;
+  filter: saturate(1.32) contrast(1.14) brightness(0.94);
+}
+
+.map-node.completed .node-icon-art {
+  opacity: 0.54;
+  filter: grayscale(1) saturate(0.3) brightness(0.72);
+}
+
+.map-node.skipped .node-icon-art {
+  opacity: 0.42;
+  filter: grayscale(1) saturate(0.22) brightness(0.62);
+}
+
+.map-node.available .node-icon-art {
+  opacity: 1;
+  transform: scale(1.03);
+  filter: saturate(1.52) contrast(1.2) brightness(0.98);
+}
+
+.map-node.available .node-orb {
+  filter:
+    drop-shadow(0 14px 20px rgba(18, 14, 48, 0.46))
+    drop-shadow(0 0 12px rgba(255, 213, 110, 0.56))
+    drop-shadow(0 0 20px rgba(255, 97, 184, 0.34));
+}
+
+.map-node.node-boss .node-icon-art {
+  filter: saturate(1.42) contrast(1.18) brightness(0.9);
+}
+
+.map-node.node-boss .node-orb {
+  filter:
+    drop-shadow(0 16px 22px rgba(18, 7, 38, 0.52))
+    drop-shadow(0 0 14px rgba(255, 98, 194, 0.52))
+    drop-shadow(0 0 24px rgba(255, 219, 111, 0.34));
+}
+
+.map-node.entering .node-icon-art {
+  animation: node-icon-bloom 440ms ease both;
+}

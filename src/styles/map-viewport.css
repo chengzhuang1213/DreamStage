@@ -1,0 +1,53 @@
+.map-scene-shell {
+  display: block;
+  padding: clamp(12px, 2vh, 22px) clamp(14px, 2.4vw, 32px);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.map-scene-shell .main-layout,
+.map-scene-shell .screen-panel {
+  width: 100%;
+  height: auto;
+  min-height: max(1060px, 100%);
+  overflow: visible;
+}
+
+.map-scene-shell .screen-panel {
+  display: block;
+}
+
+.map-scene-shell .map-hud-screen {
+  width: 100%;
+  min-height: 1080px;
+  height: auto;
+  overflow: visible;
+}
+
+.map-scene-shell .map-stage {
+  min-width: var(--map-play-min-width, min(980px, calc(100vw - 320px)));
+  min-height: 900px;
+  max-height: none;
+  overflow: visible;
+}
+
+.map-scene-shell .map-board {
+  min-height: 900px;
+  transform: none;
+  transform-origin: top center;
+}
+
+.map-scene-shell .map-hud-topbar {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 220;
+  display: grid;
+  width: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.map-scene-shell .map-back-button {
+  display: grid;
+}

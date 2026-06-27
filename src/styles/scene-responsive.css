@@ -1,0 +1,110 @@
+@media (max-width: 1100px) {
+  .team-scene-layout,
+  .shop-main-stage,
+  .draft-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .team-scene-layout {
+    grid-template-areas:
+      "feature"
+      "roster"
+      "bonds"
+      "tour";
+    overflow: auto;
+  }
+
+  .team-scene-feature-panel {
+    min-height: 420px;
+  }
+
+  .draft-toolbar {
+    width: 100%;
+  }
+
+  .draft-stage .draft-bonds {
+    min-height: 190px;
+  }
+
+  .shop-main-stage .shop-run-preview {
+    order: 2;
+  }
+}
+
+@media (max-width: 820px) {
+  .team-scene-shell,
+  .shop-scene-shell,
+  .draft-scene-shell {
+    padding: 10px;
+    overflow: auto;
+  }
+
+  .team-scene,
+  .shop-screen,
+  .draft-scene-shell > .draft-page {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .team-scene-topbar,
+  .shop-header,
+  .draft-toolbar {
+    display: grid;
+    gap: 10px;
+  }
+
+  .team-scene-topbar h1,
+  .shop-title-block h2,
+  .draft-toolbar .screen-heading h2 {
+    font-size: 2.3rem;
+  }
+
+  .team-scene-resources,
+  .shop-resource-bar {
+    justify-content: stretch;
+  }
+
+  .team-scene-resources span,
+  .shop-resource-pill {
+    min-width: 0;
+  }
+
+  .team-scene-roster-grid,
+  .shop-offer-grid,
+  .draft-stage .draft-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .team-scene-portrait {
+    width: 62%;
+  }
+
+  .team-scene-roster-grid .team-scene-member,
+  .team-scene-empty-slot {
+    min-height: 150px;
+  }
+
+  .draft-card {
+    height: auto;
+    min-height: 0;
+  }
+
+  .draft-page .draft-card {
+    grid-template-columns: 112px minmax(0, 1fr);
+    height: auto;
+  }
+
+  .draft-detail-info {
+    min-height: 84px;
+  }
+
+  .shop-offer-card {
+    height: auto;
+    min-height: 210px;
+  }
+
+  .shop-main-stage .shop-run-preview {
+    display: grid;
+  }
+}

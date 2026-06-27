@@ -1,0 +1,35 @@
+.map-hud-shell {
+  width: min(100%, calc(100vw - 16px));
+  padding: 10px 0 28px;
+}
+
+.map-hud-shell > .topbar,
+.map-hud-shell > .context-bar,
+.map-hud-shell .side-panel {
+  display: none;
+}
+
+.map-hud-shell .main-layout {
+  display: block;
+}
+
+.map-hud-shell .screen-panel {
+  min-height: auto;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  overflow: visible;
+}
+
+.map-hud-screen {
+  position: relative;
+  min-height: 1080px;
+  padding: 0 0 18px;
+  color: #f7fbff;
+  --map-play-width: min(calc(100vw - 320px), 1500px);
+  --map-play-min-width: min(980px, calc(100vw - 320px));
+  --map-info-width: min(calc(100vw - 560px), 1260px);
+  --map-info-min-width: min(900px, calc(100vw - 560px));
+}
