@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Character, CharacterTemplate } from '../game';
-import { GROUP_LABELS, RARITY_LABELS, ROLE_LABELS, getActiveBonds, getActiveSecondaryBonds } from '../game';
+import { CHARACTER_POOL, GROUP_LABELS, RARITY_LABELS, ROLE_LABELS, SECONDARY_BONDS, getActiveBonds, getActiveSecondaryBonds } from '../game';
 import { BOND_LOGO_SRC, DRAFT_IMAGE_BY_ID, bondBackgroundStyle } from '../assets';
 import { Avatar } from '../components/common';
 import { getEnhancementChangeLines, getUpgradeEffectLines, HighlightText, maxUpgradeLevel } from '../game/data/upgrades';
@@ -88,7 +88,7 @@ export function ShopScreen({ gold, offers, team, selectedOffer, onSelectOffer, o
       </div>
 
       <div className="shop-main-stage">
-        <ShopRunPreview team={team} />
+        <ShopRunPreview team={team} selectedOffer={selectedOffer} />
         <div className="shop-recruit-panel">
           <div className="shop-note">每次商店可招募 1 位伙伴。购买后会加入当前队伍。</div>
           {offers.length > 0 ? (
@@ -181,10 +181,37 @@ export function ShopScreen({ gold, offers, team, selectedOffer, onSelectOffer, o
   );
 }
 
-function ShopRunPreview({ team }: { team: Character[] }) {
-  const slots = Array.from({ length: 4 }, (_, index) => team[index] ?? null);
-  const primaryBonds = getActiveBonds(team).filter((bond) => bond.count > 0);
-  const secondaryBonds = getActiveSecondaryBonds(team).filter((bond) => bond.count > 0);
+const TEMPLATE_BY_ID = new Map(CHARACTER_POOL.map((template) => [template.id, template]));
+
+function getCharacterTemplateId(character: Character | CharacterTemplate) {
+  return 'templateId' in character ? character.templateId : character.id;
+}
+
+function getCharacterHp(character: Character | CharacterTemplate) {
+  return 'hp' in character ? character.hp : character.maxHp;
+}
+
+function getMemberTooltip(character: Character | CharacterTemplate) {
+  const level = 'upgradeLevel' in character ? character.upgradeLevel : 1;
+  return `${character.name}｜LV${level}｜HP ${getCharacterHp(character)}/${character.maxHp}｜${GROUP_LABELS[character.group]}｜${ROLE_LABELS[character.role ?? 'fighter']}。${character.passive ? ` 被动：${character.passive.name}。` : ''} 技能：${character.skill.name}。`;
+}
+
+function getMemberBondChips(character: Character | CharacterTemplate) {
+  const id = getCharacterTemplateId(character);
+  return [
+    { id: character.group, name: GROUP_LABELS[character.group] },
+    ...SECONDARY_BONDS.filter((bond) => bond.memberIds.includes(id)).map((bond) => ({ id: bond.id, name: bond.name })),
+  ];
+}
+
+function ShopRunPreview({ team, selectedOffer }: { team: Character[]; selectedOffer: CharacterTemplate | null }) {
+  const previewTeam = selectedOffer && team.length < 4 && !team.some((member) => member.templateId === selectedOffer.id)
+    ? [...team, selectedOffer]
+    : team;
+  const slots = Array.from({ length: 4 }, (_, index) => previewTeam[index] ?? null);
+  const primaryBonds = getActiveBonds(previewTeam).filter((bond) => bond.count > 0);
+  const secondaryBonds = getActiveSecondaryBonds(previewTeam).filter((bond) => bond.count > 0);
+  const selectedId = selectedOffer?.id;
   const visibleBonds = [
     ...primaryBonds.map((bond) => ({
       id: bond.group.id,
@@ -193,6 +220,8 @@ function ShopRunPreview({ team }: { team: Character[] }) {
       total: 3,
       active: bond.level > 0,
       logoSrc: BOND_LOGO_SRC[bond.group.id],
+      memberIds: bond.group.memberIds,
+      description: `${bond.group.level2Name}：${bond.group.level2Description} ${bond.group.level3Name}：${bond.group.level3Description}`,
     })),
     ...secondaryBonds.map((activeBond) => ({
       id: activeBond.bond.id,
@@ -201,33 +230,67 @@ function ShopRunPreview({ team }: { team: Character[] }) {
       total: 2,
       active: activeBond.active,
       logoSrc: BOND_LOGO_SRC[activeBond.bond.id],
+      memberIds: activeBond.bond.memberIds,
+      description: activeBond.bond.description,
     })),
   ].sort((left, right) => Number(right.active) - Number(left.active) || right.count - left.count || right.total - left.total);
 
   return (
-    <section className="shop-run-preview" aria-label="当前队伍和羁绊">
-      <div>
+    <section className={`shop-run-preview ${selectedOffer ? 'has-shop-preview' : ''}`} aria-label="当前队伍和羁绊">
+      <div className="shop-run-section shop-team-section" key={`team-${selectedId ?? 'none'}`}>
         <strong>已有成员</strong>
         <div className="shop-team-strip">
           {slots.map((member, index) => member ? (
-            <div className={`shop-team-chip rarity-${member.rarity} ${member.injured ? 'injured' : ''}`} key={member.id}>
+            <div
+              className={`shop-team-chip rarity-${member.rarity} ${'injured' in member && member.injured ? 'injured' : ''} ${getCharacterTemplateId(member) === selectedId ? 'incoming' : ''}`}
+              data-tooltip={getMemberTooltip(member)}
+              key={'templateId' in member ? member.id : `offer-${member.id}`}
+              tabIndex={0}
+            >
               <Avatar character={member} label={member.name} small />
-              <span>{member.name}</span>
-              <small>{member.injured ? '重伤' : `${member.hp}/${member.maxHp}`}</small>
+              <div className="shop-team-copy">
+                <span>{member.name}</span>
+                <small>{'injured' in member && member.injured ? '重伤' : `HP ${getCharacterHp(member)}/${member.maxHp}`}</small>
+                <div className="shop-hp-track" aria-hidden="true">
+                  <i style={{ width: `${Math.max(0, Math.min(100, Math.round((getCharacterHp(member) / member.maxHp) * 100)))}%` }} />
+                </div>
+              </div>
+              <div className="shop-member-bonds" aria-label={`${member.name}羁绊`}>
+                {getMemberBondChips(member).map((bond) => (
+                  <span className="shop-member-bond-pill" key={bond.id}>{bond.name}</span>
+                ))}
+              </div>
             </div>
           ) : (
-            <div className="shop-team-chip empty" key={`empty-${index}`}>空位</div>
+            <div className="shop-team-chip empty" key={`empty-${index}`}>
+              <span className="shop-empty-plus" aria-hidden="true">+</span>
+              <span>空位</span>
+            </div>
           ))}
         </div>
       </div>
-      <div>
-        <strong>羁绊</strong>
+      <div className="shop-run-section shop-bond-section" key={`bonds-${selectedId ?? 'none'}`}>
+        <strong>当前羁绊</strong>
         <div className="shop-bond-strip">
           {visibleBonds.length > 0 ? visibleBonds.map((bond) => (
-            <div className={`shop-bond-chip bond-theme-card ${bond.active ? 'active' : 'inactive'}`} key={bond.id} style={bondBackgroundStyle(bond.id)}>
+            <div
+              className={`shop-bond-chip bond-theme-card ${bond.active ? 'active' : 'inactive'} ${selectedOffer && bond.memberIds.includes(selectedOffer.id) ? 'bond-preview-jump' : ''}`}
+              data-tooltip={`${bond.name} ${bond.count}/${bond.total}。${bond.description}`}
+              key={bond.id}
+              style={bondBackgroundStyle(bond.id)}
+              tabIndex={0}
+            >
               {bond.logoSrc && <img src={bond.logoSrc} alt="" />}
               <span>{bond.name}</span>
               <small>{bond.count}/{bond.total}</small>
+              <div className="shop-bond-members" aria-label={`${bond.name}需要成员`}>
+                {bond.memberIds.map((memberId) => {
+                  const member = TEMPLATE_BY_ID.get(memberId);
+                  return member ? (
+                    <img className={previewTeam.some((owned) => getCharacterTemplateId(owned) === memberId) ? 'owned' : ''} src={member.avatar} alt={member.name} key={memberId} />
+                  ) : null;
+                })}
+              </div>
             </div>
           )) : (
             <div className="shop-bond-chip empty">暂无羁绊</div>
