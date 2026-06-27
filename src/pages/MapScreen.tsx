@@ -140,13 +140,15 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
         <span aria-hidden="true" />
       </header>
 
-      <BossForecast boss={boss} onOpen={() => setActiveModal('boss')} />
+      <div className="map-top-info-bar">
+        <TeamDock team={team} newMemberId={newMemberId} onOpenDetails={() => setActiveModal('team')} />
+        <BondProgressDock team={team} flashingBondIds={flashingBondIds} onOpenDetails={() => setActiveModal('bonds')} />
+      </div>
 
       <div className="map-stage">
-        <aside className="map-left-rail">
-          <TeamDock team={team} newMemberId={newMemberId} onOpenDetails={() => setActiveModal('team')} />
-          <BondProgressDock team={team} flashingBondIds={flashingBondIds} onOpenDetails={() => setActiveModal('bonds')} />
-        </aside>
+        <div className="map-start-marker" aria-hidden="true">
+          <span>起点</span>
+        </div>
         <div className="map-board">
           <MapRoutes connections={routeConnections} pulseNodeId={pulseNodeId} />
           <MapCursor node={cursorNode} nodes={nodes} entering={Boolean(enteringNodeId)} />
@@ -165,6 +167,7 @@ export function MapScreen({ nodes, boss, team, stats: _stats, gold, musicMuted: 
           ))}
         </div>
         <aside className="map-right-rail">
+          <BossForecast boss={boss} onOpen={() => setActiveModal('boss')} />
           <MapActions onOpenTeamScene={onOpenTeamScene} onOpenStats={onOpenStats} onOpenEvents={() => setActiveModal('events')} />
           <MapLegend expanded={legendExpanded} onToggle={() => setLegendExpanded((expanded) => !expanded)} />
           <div className="map-rail-gold">

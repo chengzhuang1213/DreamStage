@@ -43,25 +43,40 @@ const NODE_HELP: Record<MapNode['type'], string> = {
   boss: '击败Boss前往下一层',
   question: '随机事件/机遇房',
 };
-function getNodeY(node: MapNode) {
-  return 90 - node.row * 9.1;
+function getNodeX(node: MapNode, nodes: MapNode[]) {
+  const maxRow = Math.max(1, ...nodes.map((candidate) => candidate.row));
+  return 5 + (node.row / maxRow) * 90;
 }
 
-function getNodeX(node: MapNode, nodes: MapNode[]) {
+function getNodeY(node: MapNode, nodes: MapNode[]) {
   const rowSize = nodes.filter((candidate) => candidate.row === node.row).length;
   if (rowSize === 1) {
     return 50;
   }
   if (rowSize === 2) {
-    return node.col === 0 ? 40 : 60;
+    return node.col === 0 ? 25 : 75;
   }
-  return [28, 50, 72][node.col] ?? 50;
+  return [14, 50, 86][node.col] ?? 50;
+}
+
+function nodeJitter(node: MapNode, axis: 'x' | 'y') {
+  if (node.type === 'boss') {
+    return 0;
+  }
+
+  const seed = Array.from(`${node.id}-${axis}`).reduce((total, char) => total + char.charCodeAt(0), 0);
+  const amplitude = node.type === 'rest' ? 2 : axis === 'x' ? 2.8 : 5.2;
+  return ((seed % 101) / 100 - 0.5) * amplitude;
+}
+
+function clampPercent(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function getNodePosition(node: MapNode, nodes: MapNode[]) {
   return {
-    x: getNodeX(node, nodes),
-    y: getNodeY(node),
+    x: clampPercent(getNodeX(node, nodes) + nodeJitter(node, 'x'), 4, 96),
+    y: clampPercent(getNodeY(node, nodes) + nodeJitter(node, 'y'), 10, 90),
   };
 }
 
@@ -506,17 +521,17 @@ export function EventLogDetail({ eventLog }: { eventLog: string[] }) {
 export function MapActions({ onOpenTeamScene, onOpenStats, onOpenEvents }: { onOpenTeamScene: () => void; onOpenStats: () => void; onOpenEvents: () => void }) {
   return (
     <aside className="map-actions">
-      <button className="map-team-scene-button" type="button" onClick={onOpenTeamScene}>
-        <span>{'\u2605'}</span>
-        {'\u961f\u4f0d\u8be6\u60c5'}
+      <button className="map-team-scene-button" type="button" aria-label={'\u961f\u4f0d\u8be6\u60c5'} title={'\u961f\u4f0d\u8be6\u60c5'} onClick={onOpenTeamScene}>
+        <span aria-hidden="true">{'\u2605'}</span>
+        <em className="map-action-label">{'\u961f\u4f0d'}</em>
       </button>
-      <button type="button" onClick={onOpenStats}>
-        <span>{'\u25a3'}</span>
-        {'\u4f24\u5bb3\u7edf\u8ba1'}
+      <button type="button" aria-label={'\u4f24\u5bb3\u7edf\u8ba1'} title={'\u4f24\u5bb3\u7edf\u8ba1'} onClick={onOpenStats}>
+        <span aria-hidden="true">{'\u25a3'}</span>
+        <em className="map-action-label">{'\u7edf\u8ba1'}</em>
       </button>
-      <button type="button" onClick={onOpenEvents}>
-        <span>{'\u2630'}</span>
-        {'\u4e8b\u4ef6\u65e5\u5fd7'}
+      <button type="button" aria-label={'\u4e8b\u4ef6\u65e5\u5fd7'} title={'\u4e8b\u4ef6\u65e5\u5fd7'} onClick={onOpenEvents}>
+        <span aria-hidden="true">{'\u2630'}</span>
+        <em className="map-action-label">{'\u65e5\u5fd7'}</em>
       </button>
     </aside>
   );

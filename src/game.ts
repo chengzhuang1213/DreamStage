@@ -271,16 +271,22 @@ export function buildMap(rng: SeedRng): MapNode[] {
     rngInt(rng, 2, 3),
     rngInt(rng, 2, 3),
     rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
+    rngInt(rng, 2, 3),
     rngInt(rng, 1, 2),
     1,
   ];
+  const restRow = rowSizes.length - 2;
+  const bossRow = rowSizes.length - 1;
 
   const rows: MapNode[][] = rowSizes.map((size, row) =>
     Array.from({ length: size }, (_, col) => ({
       id: `node-${row}-${col}`,
       row,
       col,
-      type: row === 9 ? 'boss' : row === 8 ? 'rest' : 'battle',
+      type: row === bossRow ? 'boss' : row === restRow ? 'rest' : 'battle',
       nextIds: [],
       completed: false,
       available: row === 0,
@@ -288,8 +294,8 @@ export function buildMap(rng: SeedRng): MapNode[] {
   );
 
   const allNodes = rows.flat();
-  const fillableNodes = allNodes.filter((node) => node.row >= 1 && node.row <= 7);
-  const eliteNodes = allNodes.filter((node) => node.row >= 4 && node.row <= 7);
+  const fillableNodes = allNodes.filter((node) => node.row >= 1 && node.row < restRow);
+  const eliteNodes = allNodes.filter((node) => node.row >= 4 && node.row < restRow);
   const usedNodeIds = new Set<string>();
 
   function placeType(type: NodeType, candidates: MapNode[]) {
@@ -304,7 +310,10 @@ export function buildMap(rng: SeedRng): MapNode[] {
 
   placeType('question', fillableNodes);
   placeType('question', fillableNodes);
+  placeType('question', fillableNodes);
   placeType('shop', fillableNodes);
+  placeType('shop', fillableNodes);
+  placeType('elite', eliteNodes);
   placeType('elite', eliteNodes);
   placeType('elite', eliteNodes);
 
